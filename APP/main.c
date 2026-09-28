@@ -27,6 +27,9 @@
 #include "canopen_app.h"
 #include "canopen_master.h"
 #include "cia402.h"
+#include "canopen_init.h"
+#include "OD.h"
+#include "user_pdo_cfg_slave.h"
 #include "diag_log.h"
 #include "ringbuf.h"
 
@@ -219,11 +222,11 @@ int main(void)
    * 必须等 canopen_app_init() 成功、canOpenStack 非空之后再调。 */
   co_master_init(canOpenNodeSTM32.canOpenStack, canOpenNodeSTM32.activeNodeID);
 
-  /* CiA 402 状态机。目标从站节点号见 cia402.h 的 CIA402_DEFAULT_NODE_ID，
-   * 由 DM556-CAN 的 SW1~SW5 拨码决定，两边必须一致。 */
-  cia402_init(canOpenNodeSTM32.canOpenStack, CIA402_DEFAULT_NODE_ID);
-  printf("CiA402: 目标从站 = 节点 %u，%u kbit/s（驱动器 SW6/SW7 需同为 500 kbit/s）\r\n",
-         (unsigned)CIA402_DEFAULT_NODE_ID, (unsigned)canOpenNodeSTM32.baudrate);
+  /* 通用 CANopen 初始化：等 PRE-OP → 配从站 PDO → 进 OP。
+   * 完成后 cia402 接管完成模式配置与 402 状态转换。 */
+  co_init_start(canOpenNodeSTM32.canOpenStack, SLAVE1_NODE_ID, &slave1_pdo_config);
+  printf("CANopen init started: slave=%u, %u kbit/s\r\n",
+         (unsigned)SLAVE1_NODE_ID, (unsigned)canOpenNodeSTM32.baudrate);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -233,18 +236,36 @@ int main(void)
     /* USER CODE END WHILE */
     
     /* USER CODE BEGIN 3 */
-    /* 协议栈非实时部分：处理收到的报文、推进 NMT/SDO/心跳状态机。
-     * 实时部分(SYNC/RPDO/TPDO)在 SysTick_Handler 里由 canopen_app_interrupt() 驱动。 */
+    /* ── 阶段1：推进通用 CANopen 初始化 ── */
     canopen_app_process();
+    co_init_process();
 
-    /* 顺序不能颠倒：co_master_poll() 推进 SDO 事务，cia402_process() 读它的
-     * 结果决定下一步。先让底层把事务跑完，状态机这一轮就能立刻看到结果，
-     * 少等一个主循环周期。 */
-    co_master_poll();
-    cia402_process();
+    /* ── 阶段2：通用初始化完成后启动并推进 402 ── */
+    static bool_t g_cia402_started = false;
+    if (co_init_done() && !g_cia402_started) {
+      cia402_init(canOpenNodeSTM32.canOpenStack, SLAVE1_NODE_ID, CIA402_MODE_PROFILE_VEL);
+      g_cia402_started = true;
+      printf("CiA402 init started: mode=velocity\r\n");
+    }
+    if (g_cia402_started) {
+      cia402_process();
+    }
 
-    /* 每秒把这一秒内缓存的 CAN 帧全部打印出来 */
     uint32_t nowTick = HAL_GetTick();
+
+    /* ── 10s 测试：手动触发 TPDO 发送，打印 RPDO 收到的反馈 ── */
+    if (g_cia402_started && cia402_get_state() == CIA402_RUNNING) {
+      static uint32_t g_testTick = 0;
+      if ((nowTick - g_testTick) >= 10000u) {
+        g_testTick = nowTick;
+        CO_TPDOsendRequest(&canOpenNodeSTM32.canOpenStack->TPDO[0]);
+        printf("[10s TPDO] cw=0x%04X vel=%ld | sts=0x%04X actVel=%ld\r\n",
+               OD_RAM.x2000_controlword, (int32_t)OD_RAM.x2002_target_velocity,
+               OD_RAM.x2003_statusword,  (int32_t)OD_RAM.x2005_actual_velocity);
+      }
+    }
+
+    /* ── 每秒 CAN 帧日志 ── */
     if ((nowTick - g_dumpTick) >= 1000u) {
       g_dumpTick = nowTick;
       can_log_dump();

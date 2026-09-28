@@ -38,6 +38,7 @@ BUILD_DIR = build
 C_SOURCES =  \
 APP/main.c \
 APP/cia402/cia402.c \
+APP/canopen_init/canopen_init.c \
 framework/Core/Src/stm32f4xx_it.c \
 framework/Core/Src/stm32f4xx_hal_msp.c \
 framework/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c \
@@ -154,6 +155,7 @@ AS_INCLUDES =
 C_INCLUDES =  \
 -IAPP \
 -IAPP/cia402 \
+-IAPP/canopen_init \
 -Iframework/Core/Inc \
 -Iframework/BSP \
 -Iframework/libringbuffer \

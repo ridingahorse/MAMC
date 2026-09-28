@@ -45,7 +45,8 @@
  * 注意 MULTI 与 CALLBACK_CHANGE 互斥（CO_config.h:168-170 有明确警告）。 */
 #undef  CO_CONFIG_HB_CONS
 #define CO_CONFIG_HB_CONS                                                                                              \
-    (CO_CONFIG_HB_CONS_ENABLE | CO_CONFIG_HB_CONS_CALLBACK_MULTI | CO_CONFIG_GLOBAL_FLAG_OD_DYNAMIC                   \
+    (CO_CONFIG_HB_CONS_ENABLE | CO_CONFIG_HB_CONS_CALLBACK_MULTI | CO_CONFIG_HB_CONS_QUERY_FUNCT \
+      | CO_CONFIG_GLOBAL_FLAG_OD_DYNAMIC \
      | CO_CONFIG_GLOBAL_FLAG_TIMERNEXT)
 
 #endif /* CO_DRIVER_CUSTOM_H */

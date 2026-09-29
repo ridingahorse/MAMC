@@ -51,8 +51,9 @@
      uint16_t map_idx;           /**< 映射参数索引：0x1600+n / 0x1A00+n */
      uint32_t cob_id;            /**< 实际 COB-ID（不含启用位 bit31） */
      uint8_t  tx_type;           /**< 传输类型 */
-     uint16_t event_timer;       /**< TPDO事件定时器(ms)，从站定时上报，RPDO设0 */
-     uint8_t  map_count;         /**< 映射条目数 */
+    uint16_t event_timer;       /**< TPDO事件定时器(ms)，从站定时上报，RPDO设0 */
+    uint16_t inhibit_time;      /**< TPDO禁止时间(100μs单位)，0=不限制；防止事件风暴 */
+    uint8_t  map_count;         /**< 映射条目数 */
      uint32_t map_entries[8];    /**< (index<<16 | subIndex<<8 | bitLength) */
  } co_pdo_channel_t;
  

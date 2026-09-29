@@ -234,8 +234,22 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-    
+
     /* USER CODE BEGIN 3 */
+    /* 调试：每 500ms 打印一次循环心跳，确认 while 在跑 */
+    {
+      static uint32_t s_loopTick = 0;
+      uint32_t now = HAL_GetTick();
+      if (now - s_loopTick >= 500u) {
+        s_loopTick = now;
+        printf("[LOOP] tick=%lu co_state=%d co_fault=0x%04X nmt=%d errReg=0x%02X\r\n", now,
+               (int)co_init_get_state(),
+               (unsigned)co_init_get_fault_code(),
+               (int)canOpenNodeSTM32.canOpenStack->NMT->operatingState,
+               OD_RAM.x1001_errorRegister);
+      }
+    }
+
     /* ── 阶段1：推进通用 CANopen 初始化 ── */
     canopen_app_process();
     co_init_process();
@@ -258,6 +272,9 @@ int main(void)
       static uint32_t g_testTick = 0;
       if ((nowTick - g_testTick) >= 10000u) {
         g_testTick = nowTick;
+        /* 设置控制字(保持OP)和目标速度，然后触发TPDO发送 */
+        OD_RAM.x2000_controlword = 0x000F;
+        OD_RAM.x2002_target_velocity = 1000;
         CO_TPDOsendRequest(&canOpenNodeSTM32.canOpenStack->TPDO[0]);
         printf("[10s TPDO] cw=0x%04X vel=%ld | sts=0x%04X actVel=%ld\r\n",
                OD_RAM.x2000_controlword, (int32_t)OD_RAM.x2002_target_velocity,

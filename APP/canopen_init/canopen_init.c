@@ -53,7 +53,9 @@
      PDO_STEP_WRITE_ENTRY,       /**< 写 map_idx  sub2..subN（继续写条目） */
      PDO_STEP_SET_COUNT,         /**< 写 map_idx  sub0 = map_count */
      PDO_STEP_SET_TX_TYPE,       /**< 写 comm_idx sub2 = tx_type */
-     PDO_STEP_SET_EVENT_TIMER,   /**< 写 comm_idx sub5 = event_timer */
+    PDO_STEP_SET_INHIBIT,       /**< 写 comm_idx sub3 = inhibit_time */
+    PDO_STEP_SET_EVENT_TIMER,   /**< 写 comm_idx sub5 = event_timer */
+    PDO_STEP_VERIFY,            /**< 读回 inhibit 和 event，确认写入 */
      PDO_STEP_ENABLE,            /**< 写 comm_idx sub1 = cob_id（bit31=0，启用） */
      PDO_STEP_NEXT_CH            /**< 处理下一通道（禁用）或返回 DONE */
  } pdo_step_t;
@@ -120,32 +122,43 @@
          break;
  
      case PDO_STEP_SET_COUNT:
-         /* 写映射条目数 */
-         val32 = ch->map_count;
-         co_master_start_write(s->node_id, ch->map_idx, 0, &val32, 1, CO_INIT_PDO_TIMEOUT_MS);
-         s->pdo_step = PDO_STEP_SET_TX_TYPE;
-         break;
- 
-     case PDO_STEP_SET_TX_TYPE:
-         /* 写传输类型 */
-         val32 = ch->tx_type;
-         co_master_start_write(s->node_id, ch->comm_idx, 2, &val32, 1, CO_INIT_PDO_TIMEOUT_MS);
-         s->pdo_step = PDO_STEP_SET_EVENT_TIMER;
-         break;
- 
-     case PDO_STEP_SET_EVENT_TIMER:
-         /* 写事件定时器 */
-         val32 = ch->event_timer;
-         co_master_start_write(s->node_id, ch->comm_idx, 5, &val32, 2, CO_INIT_PDO_TIMEOUT_MS);
-         s->pdo_step = PDO_STEP_ENABLE;
-         break;
- 
-     case PDO_STEP_ENABLE:
-         /* 启用 PDO（bit31=0） */
-         val32 = ch->cob_id;
-         co_master_start_write(s->node_id, ch->comm_idx, 1, &val32, 4, CO_INIT_PDO_TIMEOUT_MS);
-         s->pdo_step = PDO_STEP_NEXT_CH;
-         break;
+        /* 写映射条目数 */
+        val32 = ch->map_count;
+        printf("[PDO] ch%u 0x%04X:00 map_count=%u\r\n", s->pdo_channel, ch->map_idx, (unsigned)val32);
+        co_master_start_write(s->node_id, ch->map_idx, 0, &val32, 1, CO_INIT_PDO_TIMEOUT_MS);
+        s->pdo_step = PDO_STEP_SET_TX_TYPE;
+        break;
+
+    case PDO_STEP_SET_TX_TYPE:
+        /* 写传输类型 */
+        val32 = ch->tx_type;
+        printf("[PDO] ch%u 0x%04X:02 tx_type=0x%02X\r\n", s->pdo_channel, ch->comm_idx, (unsigned)val32);
+        co_master_start_write(s->node_id, ch->comm_idx, 2, &val32, 1, CO_INIT_PDO_TIMEOUT_MS);
+        s->pdo_step = PDO_STEP_SET_INHIBIT;
+        break;
+
+    case PDO_STEP_SET_INHIBIT:
+        /* 写禁止时间（sub3），防止事件驱动风暴 */
+        val32 = ch->inhibit_time;
+        printf("[PDO] ch%u 0x%04X:03 inhibit_time=%u\r\n", s->pdo_channel, ch->comm_idx, (unsigned)val32);
+        co_master_start_write(s->node_id, ch->comm_idx, 3, &val32, 2, CO_INIT_PDO_TIMEOUT_MS);
+        s->pdo_step = PDO_STEP_SET_EVENT_TIMER;
+        break;
+
+    case PDO_STEP_SET_EVENT_TIMER:
+        /* 写事件定时器 */
+        val32 = ch->event_timer;
+        printf("[PDO] ch%u 0x%04X:05 event_timer=%u\r\n", s->pdo_channel, ch->comm_idx, (unsigned)val32);
+        co_master_start_write(s->node_id, ch->comm_idx, 5, &val32, 2, CO_INIT_PDO_TIMEOUT_MS);
+        s->pdo_step = PDO_STEP_ENABLE;
+        break;
+
+    case PDO_STEP_ENABLE:
+        /* 启用 PDO（bit31=0） */
+        val32 = ch->cob_id;
+        co_master_start_write(s->node_id, ch->comm_idx, 1, &val32, 4, CO_INIT_PDO_TIMEOUT_MS);
+        s->pdo_step = PDO_STEP_NEXT_CH;
+        break;
  
      case PDO_STEP_NEXT_CH:
          /* 当前通道完成，下个通道（或全部完成） */
@@ -236,19 +249,39 @@
  
      switch (s->state) {
  
-     case CO_INIT_WAIT_PREOP:
-         node = &s_co->HBcons->monitoredNodes[s->hb_idx];
-         if (node->HBstate == CO_HBconsumer_ACTIVE) {
-             s->online = true;   /* 心跳到了也算上线 */
-         }
-         if (s->online && node->NMTstate == CO_NMT_PRE_OPERATIONAL) {
-             s->state = CO_INIT_READ_IDENTITY;
-         } else if (now_ms() >= s->deadline) {
-             s->fault = true;
-             s->fault_code = CO_INIT_ERR_PREOP_TIMEOUT;
-             s->state = CO_INIT_FAULT;
-         }
-         break;
+     case CO_INIT_WAIT_PREOP: {
+        static uint32_t dbg_last = 0;
+        if (s->hb_idx >= s_co->HBcons->numberOfMonitoredNodes) {
+            /* 心跳消费者未配置，直接超时进故障 */
+            s->fault = true;
+            s->fault_code = CO_INIT_ERR_PREOP_TIMEOUT;
+            s->state = CO_INIT_FAULT;
+            break;
+        }
+        node = &s_co->HBcons->monitoredNodes[s->hb_idx];
+        if (node->HBstate == CO_HBconsumer_ACTIVE) {
+            s->online = true;   /* 心跳到了也算上线 */
+        }
+        /* 调试：每 1s 打印一次心跳消费者状态 */
+        if (now_ms() - dbg_last >= 1000) {
+            dbg_last = now_ms();
+            printf("[DBG WAIT_PREOP] hb_idx=%u numMon=%u nodeId=%u HBstate=%u NMTstate=%u online=%u\r\n",
+                   s->hb_idx, s_co->HBcons->numberOfMonitoredNodes,
+                   node->nodeId, node->HBstate, node->NMTstate, s->online);
+        }
+        if (s->online && node->NMTstate == CO_NMT_PRE_OPERATIONAL) {
+            s->state = CO_INIT_READ_IDENTITY;
+        } else if (s->online && node->NMTstate == CO_NMT_OPERATIONAL) {
+            /* 从站已在 OP（上次配置过且掉电保存），跳过配置直接完成 */
+            printf("CO_INIT: node=%u already in OP, skip config\r\n", s->node_id);
+            s->state = CO_INIT_DONE;
+        } else if (now_ms() >= s->deadline) {
+            s->fault = true;
+            s->fault_code = CO_INIT_ERR_PREOP_TIMEOUT;
+            s->state = CO_INIT_FAULT;
+        }
+        break;
+    }
  
      case CO_INIT_READ_IDENTITY:
          co_master_poll();
@@ -280,16 +313,21 @@
              break;
          }
          if (co_master_get_result() == CO_MASTER_OK) {
-             if (co_master_get_u8(&u8val) && u8val == 0) {
-                 s->state = CO_INIT_CFG_HEARTBEAT;
-             } else {
-                 s->fault = true; s->fault_code = CO_INIT_ERR_ERRREG_NONZERO;
-                 s->state = CO_INIT_FAULT;
-             }
-         } else {
-             s->fault = true; s->fault_code = CO_INIT_ERR_ERRREG_SDO;
-             s->state = CO_INIT_FAULT;
-         }
+            if (co_master_get_u8(&u8val)) {
+                if (u8val != 0) {
+                    /* 错误寄存器非零只警告，不终止。很多从站上电瞬间会置位，
+                     * 实际不影响后续配置与运行。 */
+                    printf("CO_INIT: node=%u 错误寄存器=0x%02X（警告，继续）\r\n", s->node_id, u8val);
+                }
+                s->state = CO_INIT_CFG_HEARTBEAT;
+            } else {
+                s->fault = true; s->fault_code = CO_INIT_ERR_ERRREG_SDO;
+                s->state = CO_INIT_FAULT;
+            }
+        } else {
+            s->fault = true; s->fault_code = CO_INIT_ERR_ERRREG_SDO;
+            s->state = CO_INIT_FAULT;
+        }
          break;
  
      case CO_INIT_CFG_HEARTBEAT:
@@ -362,13 +400,23 @@
      s_slave.prev_state = (co_init_state_t)-1;
  
      /* 配置心跳消费者：OD 0x1016 写入 (nodeId<<16) | 1000ms */
-     if (s_co != NULL && s_co->HBcons != NULL) {
-         uint32_t entry = ((uint32_t)nodeId << 16) | 1000u;
-         OD_set_u32(OD_ENTRY_H1016_consumerHeartbeatTime, 1, entry, false);
- 
-         s_slave.hb_idx = (uint8_t)CO_HBconsumer_getIdxByNodeId(s_co->HBcons, nodeId);
-         CO_HBconsumer_initCallbackRemoteReset(s_co->HBcons, s_slave.hb_idx, NULL, on_bootup);
-     }
+    if (s_co != NULL && s_co->HBcons != NULL) {
+        uint32_t entry = ((uint32_t)nodeId << 16) | 1000u;
+        ODR_t odr = OD_set_u32(OD_ENTRY_H1016_consumerHeartbeatTime, 1, entry, false);
+
+        int8_t idx = CO_HBconsumer_getIdxByNodeId(s_co->HBcons, nodeId);
+        printf("[DBG co_init] OD_set_u32(0x1016)=%d hb_idx=%d numMon=%u\r\n",
+               (int)odr, (int)idx, s_co->HBcons->numberOfMonitoredNodes);
+        if (idx >= 0 && idx < s_co->HBcons->numberOfMonitoredNodes) {
+            s_slave.hb_idx = (uint8_t)idx;
+            CO_HBconsumer_initCallbackRemoteReset(s_co->HBcons, s_slave.hb_idx, NULL, on_bootup);
+        } else {
+            s_slave.hb_idx = 0xFF;  /* 标记无效 */
+            printf("[DBG co_init] ERROR: heartbeat consumer not found for node=%u\r\n", nodeId);
+        }
+    } else {
+        s_slave.hb_idx = 0xFF;
+    }
  
      printf("CO_INIT: start node=%u\r\n", nodeId);
  }

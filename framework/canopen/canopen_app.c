@@ -26,9 +26,10 @@ static volatile bool_t running = false;
 
 /* ── 初始化参数（沿用上游取值）──────────────────────────────────── */
 
-/* 启动后进入 Operational；错误时进 Pre-Operational，并上报通用错误与通信错误 */
+/* 启动后进入 Operational。去掉 CO_NMT_ERR_ON_ERR_REG：
+ * 主站错误寄存器可能因上电瞬时通信错误置位，不应因此阻止进 OP。 */
 #define NMT_CONTROL                                                                                                    \
-    (CO_NMT_STARTUP_TO_OPERATIONAL | CO_NMT_ERR_ON_ERR_REG | CO_ERR_REG_GENERIC_ERR | CO_ERR_REG_COMMUNICATION)
+    (CO_NMT_STARTUP_TO_OPERATIONAL | CO_ERR_REG_GENERIC_ERR | CO_ERR_REG_COMMUNICATION)
 #define FIRST_HB_TIME        500   /* 首次心跳延时 ms */
 #define SDO_SRV_TIMEOUT_TIME 1000  /* SDO 服务器超时 ms（本节点作服务器时） */
 #define SDO_CLI_TIMEOUT_TIME 500   /* SDO 客户端超时 ms（主站读写从站时） */

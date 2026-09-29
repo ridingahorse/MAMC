@@ -32,8 +32,9 @@
      .map_idx     = 0x1600,
      .cob_id      = 0x200 + SLAVE1_NODE_ID,   /* 0x202 */
      .tx_type     = 0xFE,
-     .event_timer = 0,                         /* RPDO 不需要定时器 */
-     .map_count   = 2,
+    .event_timer = 0,                         /* RPDO 不需要定时器 */
+    .inhibit_time = 0,                        /* RPDO 无禁止时间 */
+    .map_count   = 2,
      .map_entries = {
          PDO_MAP(0x6040, 0, 16),  /* 控制字   0x6040.00 */
          PDO_MAP(0x60FF, 0, 32),  /* 目标速度 0x60FF.00 */
@@ -48,9 +49,10 @@
      .comm_idx    = 0x1800,
      .map_idx     = 0x1A00,
      .cob_id      = 0x180 + SLAVE1_NODE_ID,   /* 0x182 */
-     .tx_type     = 0xFE,                      /* 事件驱动 */
-     .event_timer = SLAVE1_TPDO_PERIOD,        /* 定时 10ms 上报 */
-     .map_count   = 2,
+     .tx_type     = 0xFF,                      /* 异步(带定时器)，雷赛DM556需0xFF才使能event_timer */
+    .event_timer = SLAVE1_TPDO_PERIOD,        /* 定时 10ms 上报 */
+    .inhibit_time = 100,                      /* 禁止时间 10ms（100×100μs），防止事件风暴 */
+    .map_count   = 2,
      .map_entries = {
          PDO_MAP(0x6041, 0, 16),  /* 状态字   0x6041.00 */
          PDO_MAP(0x606C, 0, 32),  /* 实际速度 0x606C.00 */

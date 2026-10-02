@@ -45,8 +45,42 @@
   *  配置顺序：禁用 → 清映射 → 写条目 → 设数量 → 传输类型 → 定时器 → 启用
   *  注意：每个步骤名的含义是「本步要发起的 SDO」，不是「上一步的 SDO」。
   *  返回：BUSY=进行中, DONE=全部完成, FAULT=失败
-  * ═══════════════════════════════════════════════════════════════ */
+ * ═══════════════════════════════════════════════════════════════ */
  
+/* ═══════════════════════════════════════════════════════════════
+ *  主站 PDO 映射重配：把 cfg->master_mappings 写入主站 OD
+ *  从站配置（channels）和主站映射（master_mappings）完全分开，
+ *  仅由 co_pdo_config_t 关联。
+ * ═══════════════════════════════════════════════════════════════ */
+static void apply_master_pdo_mapping(const co_pdo_config_t* cfg)
+{
+    if (s_co == NULL || cfg == NULL || cfg->master_mappings == NULL) return;
+
+    for (uint8_t i = 0; i < cfg->master_mappings_count; i++) {
+        const co_master_pdo_mapping_t* m = &cfg->master_mappings[i];
+
+        /* 通过 OD_find 找主站映射条目（0x1600 / 0x1A00） */
+        OD_entry_t* master_map = OD_find(OD, m->index);
+        if (master_map == NULL) {
+            printf("CO_INIT: master map 0x%04X NOT FOUND\r\n", m->index);
+            continue;
+        }
+
+        /* 1. 清映射：sub0 = 0（uint8_t） */
+        OD_set_u8(master_map, 0, 0, true);
+        /* 2. 写映射条目 sub1..subN（uint32_t） */
+        for (uint8_t e = 0; e < m->count; e++) {
+            OD_set_u32(master_map, (uint8_t)(e + 1), m->entries[e], true);
+        }
+        /* 3. 设映射数：sub0 = count（uint8_t） */
+        OD_set_u8(master_map, 0, m->count, true);
+    }
+
+    /* 重新初始化 PDO，使新映射生效 */
+    uint32_t errInfo = 0;
+    CO_CANopenInitPDO(s_co, s_co->em, OD, s_co->NMT->nodeId, &errInfo);
+}
+
  typedef enum {
      PDO_STEP_DISABLE     = 0,  /**< 写 map_idx  sub0 = 0（清映射） */
      PDO_STEP_CLEAR_MAP,         /**< 写 map_idx  sub1（第一条映射条目） */
@@ -55,8 +89,7 @@
      PDO_STEP_SET_TX_TYPE,       /**< 写 comm_idx sub2 = tx_type */
     PDO_STEP_SET_INHIBIT,       /**< 写 comm_idx sub3 = inhibit_time */
     PDO_STEP_SET_EVENT_TIMER,   /**< 写 comm_idx sub5 = event_timer */
-    PDO_STEP_VERIFY,            /**< 读回 inhibit 和 event，确认写入 */
-     PDO_STEP_ENABLE,            /**< 写 comm_idx sub1 = cob_id（bit31=0，启用） */
+    PDO_STEP_ENABLE,            /**< 写 comm_idx sub1 = cob_id（bit31=0，启用） */
      PDO_STEP_NEXT_CH            /**< 处理下一通道（禁用）或返回 DONE */
  } pdo_step_t;
  
@@ -124,15 +157,19 @@
      case PDO_STEP_SET_COUNT:
         /* 写映射条目数 */
         val32 = ch->map_count;
-        printf("[PDO] ch%u 0x%04X:00 map_count=%u\r\n", s->pdo_channel, ch->map_idx, (unsigned)val32);
         co_master_start_write(s->node_id, ch->map_idx, 0, &val32, 1, CO_INIT_PDO_TIMEOUT_MS);
         s->pdo_step = PDO_STEP_SET_TX_TYPE;
         break;
 
     case PDO_STEP_SET_TX_TYPE:
-        /* 写传输类型 */
+        /* 写传输类型。
+         * 同步模式下，RPDO（主站→从站，comm_idx 0x1400~0x15FF）覆盖为 0x01：
+         *   从站收到 RPDO 后先缓存，等 SYNC 到来时才写入对象字典，实现多轴同步。
+         * TPDO（从站→主站，comm_idx 0x1800~0x19FF）保持原配置（异步定时上报）。 */
         val32 = ch->tx_type;
-        printf("[PDO] ch%u 0x%04X:02 tx_type=0x%02X\r\n", s->pdo_channel, ch->comm_idx, (unsigned)val32);
+        if (cfg->use_sync && ch->comm_idx >= 0x1400u && ch->comm_idx < 0x1600u) {
+            val32 = 0x01u;
+        }
         co_master_start_write(s->node_id, ch->comm_idx, 2, &val32, 1, CO_INIT_PDO_TIMEOUT_MS);
         s->pdo_step = PDO_STEP_SET_INHIBIT;
         break;
@@ -140,7 +177,6 @@
     case PDO_STEP_SET_INHIBIT:
         /* 写禁止时间（sub3），防止事件驱动风暴 */
         val32 = ch->inhibit_time;
-        printf("[PDO] ch%u 0x%04X:03 inhibit_time=%u\r\n", s->pdo_channel, ch->comm_idx, (unsigned)val32);
         co_master_start_write(s->node_id, ch->comm_idx, 3, &val32, 2, CO_INIT_PDO_TIMEOUT_MS);
         s->pdo_step = PDO_STEP_SET_EVENT_TIMER;
         break;
@@ -148,7 +184,6 @@
     case PDO_STEP_SET_EVENT_TIMER:
         /* 写事件定时器 */
         val32 = ch->event_timer;
-        printf("[PDO] ch%u 0x%04X:05 event_timer=%u\r\n", s->pdo_channel, ch->comm_idx, (unsigned)val32);
         co_master_start_write(s->node_id, ch->comm_idx, 5, &val32, 2, CO_INIT_PDO_TIMEOUT_MS);
         s->pdo_step = PDO_STEP_ENABLE;
         break;
@@ -213,6 +248,20 @@
          s->pdo_channel = 0;
          s->pdo_entry_idx = 0;
          const co_pdo_config_t* cfg = s->pdo_cfg;
+         if (cfg != NULL && cfg->use_sync) {
+             /* 配置主站为 SYNC 生产者：
+              *   0x1005 = 0x40000080  → COB-ID 0x80 + bit30(生产者使能)
+              *   0x1019 = 0           → 不用同步计数器（SYNC 帧无数据）
+              *   0x1006 = period_us   → SYNC 周期（微秒）
+              * 顺序：1005 → 1019 → 1006。0x1019 的 OD 扩展要求 0x1006=0 时才能写。
+              * 协议栈已开启 CO_CONFIG_FLAG_OD_DYNAMIC，写 OD 会触发 SYNC 重配置，
+              * 之后 CO_process_SYNC() 按 0x1006 周期自动发送 SYNC 帧。 */
+             OD_set_u32(OD_ENTRY_H1005, 0, 0x40000080u, false);
+             OD_set_u8(OD_ENTRY_H1019, 0, 0u, false);
+             OD_set_u32(OD_ENTRY_H1006, 0, cfg->sync_period_us, false);
+             printf("CO_INIT: SYNC producer enabled, period=%lu us\r\n",
+                    (unsigned long)cfg->sync_period_us);
+         }
          if (cfg != NULL && cfg->channels != NULL && cfg->count > 0) {
              /* 发起第一步：禁用第一个通道 */
              const co_pdo_channel_t* ch = &cfg->channels[0];
@@ -225,9 +274,14 @@
      }
  
      case CO_INIT_ENTER_OP:
-         co_master_nmt_send(CO_NMT_ENTER_OPERATIONAL, s->node_id);
-         s->deadline = now_ms() + CO_INIT_OP_TIMEOUT_MS;
-         break;
+        co_master_nmt_send(CO_NMT_ENTER_OPERATIONAL, s->node_id);
+        s->deadline = now_ms() + CO_INIT_OP_TIMEOUT_MS;
+        break;
+
+    case CO_INIT_PDO_RECONFIG:
+        co_master_nmt_send(CO_NMT_ENTER_PRE_OPERATIONAL, s->node_id);
+        s->deadline = now_ms() + CO_INIT_OP_TIMEOUT_MS;
+        break;
  
      case CO_INIT_DONE:
          printf("CO_INIT: node=%u 进入 OP，通用初始化完成\r\n", s->node_id);
@@ -250,7 +304,6 @@
      switch (s->state) {
  
      case CO_INIT_WAIT_PREOP: {
-        static uint32_t dbg_last = 0;
         if (s->hb_idx >= s_co->HBcons->numberOfMonitoredNodes) {
             /* 心跳消费者未配置，直接超时进故障 */
             s->fault = true;
@@ -261,13 +314,6 @@
         node = &s_co->HBcons->monitoredNodes[s->hb_idx];
         if (node->HBstate == CO_HBconsumer_ACTIVE) {
             s->online = true;   /* 心跳到了也算上线 */
-        }
-        /* 调试：每 1s 打印一次心跳消费者状态 */
-        if (now_ms() - dbg_last >= 1000) {
-            dbg_last = now_ms();
-            printf("[DBG WAIT_PREOP] hb_idx=%u numMon=%u nodeId=%u HBstate=%u NMTstate=%u online=%u\r\n",
-                   s->hb_idx, s_co->HBcons->numberOfMonitoredNodes,
-                   node->nodeId, node->HBstate, node->NMTstate, s->online);
         }
         if (s->online && node->NMTstate == CO_NMT_PRE_OPERATIONAL) {
             s->state = CO_INIT_READ_IDENTITY;
@@ -295,7 +341,7 @@
          if (co_master_get_result() == CO_MASTER_OK) {
              uint32_t vendor_id;
              co_master_get_u32(&vendor_id);
-             printf("CO_INIT: vendor ID = 0x%08X\r\n", vendor_id);
+             printf("CO_INIT: vendor ID = 0x%08lX\r\n", (unsigned long)vendor_id);
              s->state = CO_INIT_READ_ERROR_REG;
          } else {
              s->fault = true; s->fault_code = CO_INIT_ERR_IDENTITY_SDO;
@@ -348,26 +394,40 @@
          break;
  
      case CO_INIT_CFG_PDO: {
-         pdo_result_t r = pdo_cfg_tick(s);
-         if (r == PDO_DONE) {
-             s->state = CO_INIT_ENTER_OP;
-         } else if (r == PDO_FAULT) {
-             s->fault = true; s->fault_code = CO_INIT_ERR_PDO;
-             s->state = CO_INIT_FAULT;
-         }
-         break;
-     }
+        pdo_result_t r = pdo_cfg_tick(s);
+        if (r == PDO_DONE) {
+            /* 从站 PDO 配置完成后，重配主站侧 PDO 映射 */
+            apply_master_pdo_mapping(s->pdo_cfg);
+            s->state = CO_INIT_ENTER_OP;
+        } else if (r == PDO_FAULT) {
+            s->fault = true; s->fault_code = CO_INIT_ERR_PDO;
+            s->state = CO_INIT_FAULT;
+        }
+        break;
+    }
  
      case CO_INIT_ENTER_OP:
-         node = &s_co->HBcons->monitoredNodes[s->hb_idx];
-         if (node->HBstate == CO_HBconsumer_ACTIVE
-             && node->NMTstate == CO_NMT_OPERATIONAL) {
-             s->state = CO_INIT_DONE;
-         } else if (now_ms() >= s->deadline) {
-             s->fault = true; s->fault_code = CO_INIT_ERR_OP_TIMEOUT;
-             s->state = CO_INIT_FAULT;
-         }
-         break;
+        node = &s_co->HBcons->monitoredNodes[s->hb_idx];
+        if (node->HBstate == CO_HBconsumer_ACTIVE
+            && node->NMTstate == CO_NMT_OPERATIONAL) {
+            s->state = CO_INIT_DONE;
+        } else if (now_ms() >= s->deadline) {
+            s->fault = true; s->fault_code = CO_INIT_ERR_OP_TIMEOUT;
+            s->state = CO_INIT_FAULT;
+        }
+        break;
+
+    case CO_INIT_PDO_RECONFIG:
+        node = &s_co->HBcons->monitoredNodes[s->hb_idx];
+        if (node->HBstate == CO_HBconsumer_ACTIVE
+            && node->NMTstate == CO_NMT_PRE_OPERATIONAL) {
+            /* 从站已回 PRE-OP，直接重新配 PDO（跳过读设备信息等） */
+            s->state = CO_INIT_CFG_PDO;
+        } else if (now_ms() >= s->deadline) {
+            s->fault = true; s->fault_code = CO_INIT_ERR_OP_TIMEOUT;
+            s->state = CO_INIT_FAULT;
+        }
+        break;
  
      case CO_INIT_DONE:
      case CO_INIT_FAULT:
@@ -402,17 +462,15 @@
      /* 配置心跳消费者：OD 0x1016 写入 (nodeId<<16) | 1000ms */
     if (s_co != NULL && s_co->HBcons != NULL) {
         uint32_t entry = ((uint32_t)nodeId << 16) | 1000u;
-        ODR_t odr = OD_set_u32(OD_ENTRY_H1016_consumerHeartbeatTime, 1, entry, false);
+        OD_set_u32(OD_ENTRY_H1016_consumerHeartbeatTime, 1, entry, false);
 
         int8_t idx = CO_HBconsumer_getIdxByNodeId(s_co->HBcons, nodeId);
-        printf("[DBG co_init] OD_set_u32(0x1016)=%d hb_idx=%d numMon=%u\r\n",
-               (int)odr, (int)idx, s_co->HBcons->numberOfMonitoredNodes);
         if (idx >= 0 && idx < s_co->HBcons->numberOfMonitoredNodes) {
             s_slave.hb_idx = (uint8_t)idx;
             CO_HBconsumer_initCallbackRemoteReset(s_co->HBcons, s_slave.hb_idx, NULL, on_bootup);
         } else {
             s_slave.hb_idx = 0xFF;  /* 标记无效 */
-            printf("[DBG co_init] ERROR: heartbeat consumer not found for node=%u\r\n", nodeId);
+            printf("CO_INIT: ERROR heartbeat consumer not found for node=%u\r\n", nodeId);
         }
     } else {
         s_slave.hb_idx = 0xFF;
@@ -422,8 +480,18 @@
  }
  
  void co_init_process(void) {
-     fsm_dispatch(&s_slave);
- }
+    fsm_dispatch(&s_slave);
+}
+
+void co_init_restart(const co_pdo_config_t* new_cfg) {
+    s_slave.pdo_cfg = new_cfg;
+    s_slave.online = false;
+    s_slave.fault = false;
+    s_slave.fault_code = 0;
+    s_slave.state = CO_INIT_PDO_RECONFIG;
+    s_slave.prev_state = (co_init_state_t)-1;
+    printf("CO_INIT: restart with new PDO config\r\n");
+}
  
  bool_t co_init_done(void) {
      return s_slave.state == CO_INIT_DONE;

@@ -28,10 +28,13 @@
 #include "canopen_master.h"
 #include "cia402.h"
 #include "canopen_init.h"
+#include "motor_ctrl.h"
+#include "slave_config.h"
 #include "OD.h"
 #include "user_pdo_cfg_slave.h"
 #include "diag_log.h"
 #include "ringbuf.h"
+#include "test.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -160,7 +163,7 @@ void CO_CANrxCaptureHook(uint32_t ident, uint8_t dlc, const uint8_t *data)
   * @retval int
   */
 int main(void)
-{
+  {
 
   /* USER CODE BEGIN 1 */
 
@@ -222,10 +225,9 @@ int main(void)
    * 必须等 canopen_app_init() 成功、canOpenStack 非空之后再调。 */
   co_master_init(canOpenNodeSTM32.canOpenStack, canOpenNodeSTM32.activeNodeID);
 
-  /* 通用 CANopen 初始化：等 PRE-OP → 配从站 PDO → 进 OP。
-   * 完成后 cia402 接管完成模式配置与 402 状态转换。 */
-  co_init_start(canOpenNodeSTM32.canOpenStack, SLAVE1_NODE_ID, &slave1_pdo_config);
-  printf("CANopen init started: slave=%u, %u kbit/s\r\n",
+  /* 一站式配置：启动 CANopen 初始化，402 状态机由 motor_ctrl_process 在合适时机自动启动 */
+  motor_ctrl_set_config(canOpenNodeSTM32.canOpenStack, &slave1_config, CIA402_MODE_PROFILE_VEL);
+  printf("motor_ctrl config set: mode=velocity, slave=%u, %u kbit/s\r\n",
          (unsigned)SLAVE1_NODE_ID, (unsigned)canOpenNodeSTM32.baudrate);
   /* USER CODE END 2 */
 
@@ -236,56 +238,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* 调试：每 500ms 打印一次循环心跳，确认 while 在跑 */
-    {
-      static uint32_t s_loopTick = 0;
-      uint32_t now = HAL_GetTick();
-      if (now - s_loopTick >= 500u) {
-        s_loopTick = now;
-        printf("[LOOP] tick=%lu co_state=%d co_fault=0x%04X nmt=%d errReg=0x%02X\r\n", now,
-               (int)co_init_get_state(),
-               (unsigned)co_init_get_fault_code(),
-               (int)canOpenNodeSTM32.canOpenStack->NMT->operatingState,
-               OD_RAM.x1001_errorRegister);
-      }
-    }
-
-    /* ── 阶段1：推进通用 CANopen 初始化 ── */
+    /* ── 推进电机控制状态机（内部协调 CANopen 初始化 + 402） ── */
     canopen_app_process();
-    co_init_process();
+    motor_ctrl_process();
 
-    /* ── 阶段2：通用初始化完成后启动并推进 402 ── */
-    static bool_t g_cia402_started = false;
-    if (co_init_done() && !g_cia402_started) {
-      cia402_init(canOpenNodeSTM32.canOpenStack, SLAVE1_NODE_ID, CIA402_MODE_PROFILE_VEL);
-      g_cia402_started = true;
-      printf("CiA402 init started: mode=velocity\r\n");
-    }
-    if (g_cia402_started) {
-      cia402_process();
-    }
-
+    /* ── 模式切换测试 ── */
     uint32_t nowTick = HAL_GetTick();
-
-    /* ── 10s 测试：手动触发 TPDO 发送，打印 RPDO 收到的反馈 ── */
-    if (g_cia402_started && cia402_get_state() == CIA402_RUNNING) {
-      static uint32_t g_testTick = 0;
-      if ((nowTick - g_testTick) >= 10000u) {
-        g_testTick = nowTick;
-        /* 设置控制字(保持OP)和目标速度，然后触发TPDO发送 */
-        OD_RAM.x2000_controlword = 0x000F;
-        OD_RAM.x2002_target_velocity = 1000;
-        CO_TPDOsendRequest(&canOpenNodeSTM32.canOpenStack->TPDO[0]);
-        printf("[10s TPDO] cw=0x%04X vel=%ld | sts=0x%04X actVel=%ld\r\n",
-               OD_RAM.x2000_controlword, (int32_t)OD_RAM.x2002_target_velocity,
-               OD_RAM.x2003_statusword,  (int32_t)OD_RAM.x2005_actual_velocity);
-      }
-    }
+    test_mode_switch(nowTick);
 
     /* ── 每秒 CAN 帧日志 ── */
     if ((nowTick - g_dumpTick) >= 1000u) {
       g_dumpTick = nowTick;
-      can_log_dump();
+      //can_log_dump();
     }
   }
   /* USER CODE END 3 */

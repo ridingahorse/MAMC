@@ -29,9 +29,10 @@
      CO_INIT_CFG_HEARTBEAT,      /**< 写 0x1017 心跳生产者周期 */
      CO_INIT_CFG_PDO,            /**< 配置 PDO 通讯+映射 */
      CO_INIT_ENTER_OP,           /**< 发 NMT 进 OP，等心跳确认 */
-     CO_INIT_DONE,               /**< 初始化完成（从站已在 OP） */
-     CO_INIT_FAULT,              /**< 故障 */
- } co_init_state_t;
+    CO_INIT_DONE,               /**< 初始化完成（从站已在 OP） */
+    CO_INIT_FAULT,              /**< 故障 */
+    CO_INIT_PDO_RECONFIG,       /**< 运行时重配PDO：发NMT PRE-OP → 重配PDO → 进OP */
+} co_init_state_t;
  
  /* ═══════════════════════════════════════════════════════════════
   *  超时
@@ -54,12 +55,31 @@
     uint16_t event_timer;       /**< TPDO事件定时器(ms)，从站定时上报，RPDO设0 */
     uint16_t inhibit_time;      /**< TPDO禁止时间(100μs单位)，0=不限制；防止事件风暴 */
     uint8_t  map_count;         /**< 映射条目数 */
-     uint32_t map_entries[8];    /**< (index<<16 | subIndex<<8 | bitLength) */
+     uint32_t map_entries[8];    /**< (index<<16 | subIndex<<8 | bitLength) 从站侧映射 */
  } co_pdo_channel_t;
+
+/** 主站侧 PDO 映射（与从站配置分开，独立描述） */
+typedef struct {
+    uint16_t index;             /**< 主站映射参数索引：0x1600 / 0x1A00 */
+    uint8_t  count;             /**< 映射条目数 */
+    uint32_t entries[8];        /**< (index<<16 | subIndex<<8 | bitLength) 主站侧映射 */
+} co_master_pdo_mapping_t;
  
  typedef struct {
-     const co_pdo_channel_t* channels;
+     const co_pdo_channel_t* channels;        /**< 从站 PDO 通道配置 */
      uint8_t                  count;
+     const co_master_pdo_mapping_t* master_mappings; /**< 主站 PDO 映射（NULL=不重配主站） */
+     uint8_t                  master_mappings_count;
+     /* ── 同步 PDO 配置 ──
+      * use_sync=true 时：
+      *   1. 主站启用 SYNC 生产者（0x1005 + 0x1006），周期性发 SYNC 帧
+      *   2. 从站所有 RPDO 的传输类型被覆盖为 0x01（同步接收）
+      *      —— 主站仍用 CO_TPDOsendRequest 发数据，从站收到后缓存，
+      *         SYNC 到来时统一应用到对象字典，实现多轴同步。
+      *   3. TPDO（从站→主站）传输类型不变，保持异步定时上报。
+      * use_sync=false 时：全部沿用 channels 里的原始配置（异步）。 */
+     bool_t   use_sync;          /**< true=从站同步接收RPDO, false=异步接收 */
+     uint32_t sync_period_us;    /**< SYNC 周期（微秒），仅 use_sync=true 时有效，如 1000=1ms */
  } co_pdo_config_t;
  
  /* ═══════════════════════════════════════════════════════════════
@@ -71,8 +91,7 @@
      CO_INIT_ERR_PREOP_TIMEOUT   = 0x0100,  /**< 等 PRE-OP 超时 */
      CO_INIT_ERR_IDENTITY_SDO    = 0x0200,  /**< 读设备信息 SDO 失败 */
      CO_INIT_ERR_ERRREG_SDO      = 0x0300,  /**< 读错误寄存器 SDO 失败 */
-     CO_INIT_ERR_ERRREG_NONZERO  = 0x0301,  /**< 错误寄存器非零 */
-     CO_INIT_ERR_HB_SDO          = 0x0400,  /**< 配心跳 SDO 失败 */
+    CO_INIT_ERR_HB_SDO          = 0x0400,  /**< 配心跳 SDO 失败 */
      CO_INIT_ERR_PDO             = 0x0500,  /**< 配 PDO 失败 */
      CO_INIT_ERR_OP_TIMEOUT      = 0x0600,  /**< 等进 OP 超时 */
  } co_init_err_t;
@@ -123,9 +142,19 @@
  void co_init_process(void);
  
  /**
-   * @brief  是否初始化完成（从站已进 OP）
-   */
- bool_t co_init_done(void);
+  * @brief  是否初始化完成（从站已进 OP）
+  */
+bool_t co_init_done(void);
+
+/**
+  * @brief  运行时重新配置 PDO 并重启从站。
+  *         先发 NMT 把从站拉回 PRE-OP，再用新 PDO 配置重新走
+  *         CFG_PDO → ENTER_OP 流程。用于切换运行模式（速度/位置）。
+  * @pre    调用前 cia402 应已停机（disable operation），否则从站
+  *         在 OP 下收到 PRE-OP 命令时 PDO 会被禁用，可能丢帧。
+  * @param  new_cfg  新的 PDO 配置表
+  */
+void co_init_restart(const co_pdo_config_t* new_cfg);
  
  /**
    * @brief  查询当前状态

@@ -9,6 +9,9 @@
  *   （同步接收，见 canopen_init.c 的 SET_TX_TYPE 步骤）。0x01 的含义是：从站
  *   收到 RPDO 只把它缓存起来，收到 SYNC 才写进对象字典 —— 两轴因此会在同一条
  *   SYNC 上同时起步。
+ *   当前 slave1 是 true、slave2 临时改成 false（0xFE 立即生效）做对照：
+ *   「同步接收」已被证伪为 node4 不转的原因（改成立即生效后依旧不转），
+ *   结论出来后再决定要不要改回。
  *
  * 每一拍的顺序不能颠倒：
  *   ① 写目标（cia402_set_velocity 内部会请求 TPDO）
@@ -49,6 +52,7 @@
 #define TEST_RUN_MS         3000U       /* 正转/反转保持时间 */
 #define TEST_STOP_MS        2000U       /* 两拍之间的停止时间 */
 #define TEST_ARM_MS         50U         /* 写目标 → 发 SYNC 的间隔 */
+#define TEST_REFRESH_MS     100U        /* 运行中重发目标的周期，见 test_write_targets */
 #define TEST_POLL_MS        250U        /* 运行中的采样/打印周期 */
 #define TEST_WAIT_DBG_MS    1000U       /* 等使能时的诊断打印周期 */
 
@@ -114,12 +118,26 @@ static inline const char* test_axis_name(uint8_t axes)
  * Operation Enabled，成为「同样使能、只有设定值不同」的对照。
  * 不管它的话它会因为收不到 RPDO 而退出使能 —— 日志里 slave1 掉到 0x0670
  * （Switch On Disabled）就是这么来的，两边状态不一样就没法比。
+ *
+ * 为什么要在本拍里每 TEST_REFRESH_MS 重发一次：
+ *   主站 TPDO 的传输类型是 0xFE（映射数据变化时才发）+ 事件定时器 0，
+ *   所以「一拍只写一次目标」等于整拍只上总线一帧 0x204。带 RPDO 超时保护
+ *   的驱动器（node4 那台就是：设定值锁进了 OD、机器却停着、0x606C 恒 0、
+ *   不报错、一直发热）收到一帧后几十毫秒就自己把轴停了。
+ *   「单轴测试」分支里 node4 能转的那份 test 就是每 100ms 重发一次，这里
+ *   用同一个周期，把「发送频率」这一个变量对齐后再比。
  */
-static inline void test_arm_phase(const test_phase_t* ph)
+static inline void test_write_targets(const test_phase_t* ph)
 {
     for (uint8_t i = 0U; i < TEST_SLAVE_COUNT; i++) {
         cia402_set_velocity(i, test_axis_in_phase(ph, i) ? ph->rpm : 0);
     }
+}
+
+/** @brief 写目标 + 打印本拍内容（进拍时用；运行中的周期重发只调上面那个） */
+static inline void test_arm_phase(const test_phase_t* ph)
+{
+    test_write_targets(ph);
     /* 两个轴的 pulse_per_rev 都是 SLAVE1_PULSE_PER_REV(50000)，换算只有一个数 */
     printf("[PV] %s: target %+ld rpm (%ld pps) queued on %s\r\n",
            ph->name, (long)ph->rpm,
@@ -139,7 +157,7 @@ static inline void test_arm_phase(const test_phase_t* ph)
  * 所以这一轮不再比配置，改读「它自己怎么说」：错误码和错误历史。
  * 加上 0x6041 走 SDO 读一遍，跟 TPDO 收到的状态字对照，确认反馈通道没骗我们。
  *
- * 一轮（2 节点 × 6 条）只在每拍 SYNC 之后采一次：整拍里状态是不变的，
+ * 一轮（2 节点 × 8 条）只在每拍 SYNC 之后采一次：整拍里状态是不变的，
  * 采一次就够，日志也不会被刷屏。
  *
  * 一次只挂一笔事务，被占着就下一轮再试（co_master_step_gate 就是为此设计的）。
@@ -155,20 +173,31 @@ typedef struct {
 #define TEST_PROBE_TIMEOUT_MS   300U    /* 单条读取的预算 */
 
 /* slave1(node2) 是已知能转的，slave2(node4) 是不转的。同样的对象问两台，
- * 读数不一样的那一项就是答案。 */
+ * 读数不一样的那一项就是答案。
+ *
+ * 本轮新增三条，专门盯「同步接收 RPDO」这个变量：
+ *   - 0x6040 控制字：验证驱动器锁存的控制字真是 0x000F（而不是靠 SDO 使能
+ *     撑出来的 Operation Enabled）；
+ *   - 0x1400.02：验证 slave2_vel_config.use_sync=false 是否真的把从站 RPDO1
+ *     的传输类型从 1 改回了 0xFE；
+ *   - 0x1003.01：node4 状态字 bit4（电压使能）= 0，错误史里最近一条是什么。 */
 static const test_probe_t s_test_probe[] = {
-    { SLAVE1_NODE_ID, 0x6061, 0, "op mode display"  },
-    { SLAVE1_NODE_ID, 0x603F, 0, "error code"       },
-    { SLAVE1_NODE_ID, 0x1003, 0, "error hist count" },
-    { SLAVE1_NODE_ID, 0x6041, 0, "statusword (sdo)" },
-    { SLAVE1_NODE_ID, 0x60FF, 0, "target vel"       },
-    { SLAVE1_NODE_ID, 0x606C, 0, "actual vel"       },
-    { SLAVE2_NODE_ID, 0x6061, 0, "op mode display"  },
-    { SLAVE2_NODE_ID, 0x603F, 0, "error code"       },
-    { SLAVE2_NODE_ID, 0x1003, 0, "error hist count" },
-    { SLAVE2_NODE_ID, 0x6041, 0, "statusword (sdo)" },
-    { SLAVE2_NODE_ID, 0x60FF, 0, "target vel"       },
-    { SLAVE2_NODE_ID, 0x606C, 0, "actual vel"       },
+    { SLAVE1_NODE_ID, 0x6061, 0, "op mode display"   },
+    { SLAVE1_NODE_ID, 0x6040, 0, "controlword (sdo)" },
+    { SLAVE1_NODE_ID, 0x603F, 0, "error code"        },
+    { SLAVE1_NODE_ID, 0x1003, 1, "last error"        },
+    { SLAVE1_NODE_ID, 0x6041, 0, "statusword (sdo)"  },
+    { SLAVE1_NODE_ID, 0x60FF, 0, "target vel"        },
+    { SLAVE1_NODE_ID, 0x606C, 0, "actual vel"        },
+    { SLAVE1_NODE_ID, 0x1400, 2, "RPDO1 tx type"     },
+    { SLAVE2_NODE_ID, 0x6061, 0, "op mode display"   },
+    { SLAVE2_NODE_ID, 0x6040, 0, "controlword (sdo)" },
+    { SLAVE2_NODE_ID, 0x603F, 0, "error code"        },
+    { SLAVE2_NODE_ID, 0x1003, 1, "last error"        },
+    { SLAVE2_NODE_ID, 0x6041, 0, "statusword (sdo)"  },
+    { SLAVE2_NODE_ID, 0x60FF, 0, "target vel"        },
+    { SLAVE2_NODE_ID, 0x606C, 0, "actual vel"        },
+    { SLAVE2_NODE_ID, 0x1400, 2, "RPDO1 tx type"     },
 };
 #define TEST_PROBE_COUNT (sizeof(s_test_probe) / sizeof(s_test_probe[0]))
 
@@ -278,6 +307,7 @@ static inline void test_mode_switch(uint32_t nowTick)
     static uint8_t      s_phase = 0;                            /* 当前第几拍 */
     static uint32_t     s_t0    = 0;                            /* ARM 起点 / SYNC 时刻 */
     static uint32_t     s_dbg   = 0;                            /* 上次采样时刻 */
+    static uint32_t     s_refresh = 0;                          /* 上次重发目标的时刻 */
     static uint32_t     s_lag[TEST_SLAVE_COUNT] = { TEST_LAG_NONE, TEST_LAG_NONE };
     static uint8_t      s_lag_done = 0;                         /* 本拍同步差已报过 */
 
@@ -317,6 +347,7 @@ static inline void test_mode_switch(uint32_t nowTick)
             co_sync_send();
             s_t0       = nowTick;
             s_dbg      = nowTick;
+            s_refresh  = nowTick;
             s_lag[0]   = s_lag[1] = TEST_LAG_NONE;
             s_lag_done = 0;
             printf("[PV] %s: SYNC sent -> %s take effect now\r\n",
@@ -328,6 +359,13 @@ static inline void test_mode_switch(uint32_t nowTick)
 
     case T_RUN:
         elapsed = nowTick - s_t0;
+
+        /* 周期重发目标：让 0x202/0x204 在本拍里持续上总线，
+         * 而不是「值变了才发一帧」（见 test_write_targets 的说明） */
+        if ((nowTick - s_refresh) >= TEST_REFRESH_MS) {
+            s_refresh = nowTick;
+            test_write_targets(ph);
+        }
 
         /* 本拍（SYNC 之后）问一遍驱动器自己的参数，一轮而已 */
         test_probe_tick(nowTick, ph->name, elapsed);

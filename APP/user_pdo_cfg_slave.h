@@ -210,7 +210,12 @@ static const co_pdo_config_t slave2_vel_config = {
     .count                = sizeof(slave2_vel_channels) / sizeof(slave2_vel_channels[0]),
     .master_mappings      = slave2_vel_master_mappings,
     .master_mappings_count = sizeof(slave2_vel_master_mappings) / sizeof(slave2_vel_master_mappings[0]),
-    .use_sync             = true,
+    /* 【A/B 实验】slave2 暂时【不】走同步接收：use_sync=false 时从站
+     * 0x1400.02 保持 0xFE（收到即生效），与「单轴测试」分支里 node4 能正常
+     * 运行的那份配置完全一致；true 会被 canopen_init 覆盖成 0x01（同步接收，
+     * 等 SYNC 才生效），那是当前唯一与能转配置不同的、驱动器可见的差别。
+     * slave1 保持 true 作为对照。结论出来后再决定去留。 */
+    .use_sync             = false,
     .sync_period_us       = 0,
 };
 

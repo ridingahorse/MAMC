@@ -46,6 +46,22 @@ typedef enum {
 #define CIA402_SDO_TIMEOUT_MS      500U
 #define CIA402_OP_TIMEOUT_MS      3000U
 #define CIA402_STEP_TIMEOUT_MS    1000U
+
+/* 一次 402 状态转换（shutdown / switch on / enable op / 设模式）的总预算。
+ * 与 CIA402_STEP_TIMEOUT_MS 不是一回事：后者是**单次 SDO** 的超时，前者是
+ * 「这一步整体多久算没戏」。少了它，驱动器死活不回目标状态时会一直
+ * 「写控制字→读状态字不匹配→再读」，每一步都成功，于是永远不超时 ——
+ * 又是「轴不动、串口什么都不说」。 */
+#define CIA402_TRANS_TIMEOUT_MS   3000U
+
+/* 故障重试：402 使能过程中任何一步失败（驱动器刚上电还没准备好、报警没清、
+ * 一次总线干扰）都会进 FAULT。若 FAULT 是终点，这一个轴就只能整机断电 ——
+ * 而「重走一遍使能流程」本来就是本状态机已有的路径，没有理由不走。
+ * 次数有限：真配置错了就停在 FAULT，别把串口刷爆。 */
+#define CIA402_FAULT_RETRY_MAX     3U      /**< 故障后最多重走几次使能流程 */
+#define CIA402_FAULT_RETRY_MS      2000U   /**< 每次重走前的等待（ms） */
+
+#define CIA402_MAX_SLAVES         8U     /**< 最大从站数量，与 canopen_init 保持一致 */
  
  /* ═══════════════════════════════════════════════════════════════
   *  CiA 402 控制字 / 状态字
@@ -142,6 +158,7 @@ typedef struct {
 typedef struct {
     uint8_t  node_id;            /**< 从站节点号 */
     uint32_t pulse_per_rev;      /**< 每圈脉冲数（rpm↔pps 换算用） */
+    uint16_t od_base_index;      /**< 过程数据 OD 基址：slave1=0x2000, slave2=0x2010 */
     const co_pdo_config_t* vel_cfg;  /**< 速度模式 PDO 配置 */
     const co_pdo_config_t* pos_cfg;  /**< 位置模式 PDO 配置 */
     cia402_mode_params_t* vel_params;  /**< 速度模式参数（NULL=不配置） */
@@ -161,8 +178,9 @@ typedef struct {
    cia402_state_t prev_state;  /**< 上一次状态，用于触发 enter */
    uint8_t  trans_step;        /**< 402 状态转换子步骤（0=写控制字, 1=读状态字） */
 
-   uint32_t deadline;          /**< 当前阶段超时截止时刻（ms） */
-   uint8_t  retry;             /**< 重试次数 */
+   uint32_t deadline;          /**< 当前阶段【子步骤】（单次 SDO）超时截止时刻 */
+   uint32_t state_deadline;    /**< 当前状态【整体】超时截止时刻，进状态时设定一次 */
+   uint8_t  retry;             /**< 重试次数（跨状态保留，只在 RUNNING 清零） */
 
    bool_t   fault;             /**< 是否故障 */
    uint16_t fault_code;        /**< 故障码 */
@@ -181,6 +199,16 @@ typedef struct {
    s_curve_t scurve;            /**< S 曲线规划器实例 */
    bool_t    scurve_active;     /**< 是否正在规划中 */
    uint32_t  scurve_last_tick;  /**< 上次轨迹步进时刻（ms） */
+
+   /* 过程数据 OD 变量指针 —— 每个从站指向自己的 OD_RAM 区域，
+    * 避免多从站共用 OD_RAM.x2000 等变量时互相覆盖。
+    * 由 cia402_init 根据 cfg->od_base_index 填充。 */
+   uint16_t* ctrl;        /**< &OD_RAM.x20x0_controlword */
+   uint32_t* target_pos;  /**< &OD_RAM.x20x1_target_position */
+   uint32_t* target_vel;  /**< &OD_RAM.x20x2_target_velocity */
+   uint16_t* status;      /**< &OD_RAM.x20x3_statusword */
+   uint32_t* actual_pos;  /**< &OD_RAM.x20x4_actual_position */
+   uint32_t* actual_vel;  /**< &OD_RAM.x20x5_actual_velocity */
 } cia402_slave_t;
  
  /* ═══════════════════════════════════════════════════════════════
@@ -195,22 +223,22 @@ typedef struct {
    * @param  cfg      从站配置（node_id、pulse_per_rev、PDO/参数指针）
    * @param  mode     初始运行模式
    */
- void cia402_init(CO_t* co, const cia402_slave_config_t* cfg, cia402_mode_t mode);
+ void cia402_init(uint8_t idx, CO_t* co, const cia402_slave_config_t* cfg, cia402_mode_t mode);
  
  /**
    * @brief  状态机推进，主循环每周期调用，全程非阻塞
    */
- void cia402_process(void);
+ void cia402_process(uint8_t idx);
  
  /**
    * @brief  查询当前主状态
    */
- cia402_state_t cia402_get_state(void);
+ cia402_state_t cia402_get_state(uint8_t idx);
  
  /**
   * @brief  获取故障码
   */
-uint16_t cia402_get_fault_code(void);
+uint16_t cia402_get_fault_code(uint8_t idx);
 
 /**
   * @brief  请求切换运行模式（速度 ↔ 位置）。
@@ -221,7 +249,7 @@ uint16_t cia402_get_fault_code(void);
   * @param  mode  目标模式（CIA402_MODE_PROFILE_VEL / CIA402_MODE_PROFILE_POS）
   * @return true=请求已接受, false=当前状态不允许切换
   */
-bool_t cia402_switch_mode(cia402_mode_t mode);
+bool_t cia402_switch_mode(uint8_t idx, cia402_mode_t mode);
 
 /**
   * @brief  速度模式：设置目标速度并触发 PDO 发送。
@@ -229,7 +257,7 @@ bool_t cia402_switch_mode(cia402_mode_t mode);
   * @param  rpm  目标速度（单位：转/分钟）
   * @pre    当前为 CIA402_RUNNING 且模式为 PROFILE_VEL
   */
-void cia402_set_velocity(int32_t rpm);
+void cia402_set_velocity(uint8_t idx, int32_t rpm);
 
 /**
   * @brief  位置模式：设置绝对目标位置。
@@ -240,14 +268,14 @@ void cia402_set_velocity(int32_t rpm);
   * @param  position  目标位置（单位：脉冲数）
   * @pre    当前为 CIA402_RUNNING 且模式为 PROFILE_POS 或 CSP
   */
-void cia402_set_position_abs(int32_t position);
+void cia402_set_position_abs(uint8_t idx, int32_t position);
 
 /**
   * @brief  位置模式：设置相对目标位置（在当前实际位置基础上偏移）并触发 PDO 发送。
   * @param  delta  相对偏移量（单位：脉冲数，正=正转，负=反转）
   * @pre    当前为 CIA402_RUNNING 且模式为 PROFILE_POS
   */
-void cia402_set_position_rel(int32_t delta);
+void cia402_set_position_rel(uint8_t idx, int32_t delta);
 
 /**
   * @brief  位置是否已到达
@@ -258,23 +286,23 @@ void cia402_set_position_rel(int32_t delta);
   *         不代表电机真的到位（比如从站根本没跟随）。
   * @retval 非位置模式（如速度模式）下恒返回 false
   */
-bool_t cia402_position_reached(void);
+bool_t cia402_position_reached(uint8_t idx);
 
 /**
   * @brief  获取从站状态字（最近一次 TPDO 收到的值）
   */
-uint16_t cia402_get_statusword(void);
+uint16_t cia402_get_statusword(uint8_t idx);
 
 /**
   * @brief  获取实际速度（速度模式下，最近一次 TPDO 收到的值）
   * @return 速度（单位：rpm，内部从 pps 换算）
   */
-int32_t cia402_get_actual_velocity(void);
+int32_t cia402_get_actual_velocity(uint8_t idx);
 
 /**
   * @brief  获取实际位置（位置模式下，最近一次 TPDO 收到的值）
   */
-int32_t cia402_get_actual_position(void);
+int32_t cia402_get_actual_position(uint8_t idx);
  
  #ifdef __cplusplus
  }

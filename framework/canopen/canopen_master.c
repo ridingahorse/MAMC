@@ -6,6 +6,7 @@
 
 #include "main.h" /* HAL_GetTick() */
 
+#include <stdio.h>
 #include <string.h>
 
 /* ── 私有状态 ─────────────────────────────────────────────────── */
@@ -14,6 +15,13 @@
  * 字节，本模块按同样的量级开缓冲，够读 0x1018 这种 4×4 字节的数组；
  * 再长的对象（如 0x1003 错误历史、字符串）需要分块读，本模块不支持。 */
 #define CO_MASTER_MAX_DATA 32U
+
+/* 「孤儿事务」回收时限。正常运行时永远触发不到 —— 调用方每轮过闸门，
+ * 发起和取结果是同一处代码，一个事务最多活一个主循环周期。
+ * 它只兜一种情况：某个调用方发起了事务（或留下结果）之后就再也不推进了，
+ * 那会让客户端被永久占住、其它从站全部饿死。宁可把这种事务按超时收掉，
+ * 也不要让整条总线因为一个掉队的调用方而停摆。 */
+#define CO_MASTER_ORPHAN_TIMEOUT_MS 5000U
 
 typedef enum {
     XFER_IDLE = 0, /**< 没有事务在跑 */
@@ -29,26 +37,63 @@ static uint32_t s_lastTick = 0;
 static uint32_t s_abort = 0;
 static co_master_result_t s_result = CO_MASTER_OK;
 
+/* ── 事务归属 ─────────────────────────────────────────────────────
+ * 客户端全局唯一，调用方却有多份（每个从站的 canopen_init、每个从站的
+ * cia402）。s_owner 记录当前/最近一次事务替哪个节点跑的，s_result_ready
+ * 表示结果还没被它的主人取走。这两者合起来才让每个调用方能正确回答
+ * 「现在轮到我了吗」「刚才是成是败」。 */
+static uint8_t  s_owner = 0;             /**< 0 = 无归属 */
+static bool_t   s_result_ready = false;  /**< s_result / s_abort 待 s_owner 取走 */
+static uint32_t s_settled_tick = 0;      /**< 结果就绪时刻，用于回收孤儿结果 */
+static uint32_t s_xfer_tick = 0;         /**< 事务发起时刻，用于回收孤儿事务 */
+
 static uint8_t s_buf[CO_MASTER_MAX_DATA];
 static size_t s_len = 0;
 
+/* 当前/刚结束的事务访问的是哪个对象、哪个方向。只为一个目的：失败时能说清
+ * 「是哪一条 SDO 被拒了」。少了它，日志只能说到「从站拒绝了」——
+ * 知道被拒，但不知道拒的是谁，等于还得再猜一轮。 */
+static uint16_t s_index = 0;
+static uint8_t s_subIndex = 0;
+static xfer_dir_t s_lastDir = XFER_READ; /**< 刚结束的那笔事务的方向 */
+
 static co_master_start_err_t s_startErr = CO_MASTER_START_OK;
 
-/* 事务只在主循环上下文里推进（co_master_start_* 与 co_master_poll 都在
+/* 事务只在主循环上下文里推进（co_master_start_* 与 co_master_step_gate 都在
  * 主循环调用），CAN 中断只负责把报文塞进协议栈，不碰这些变量。 */
 
 /* ── 内部工具 ─────────────────────────────────────────────────── */
 
-/** @brief 结束当前事务：关掉 SDO 客户端、释放事务占用 */
+/** @brief 结束当前事务：关掉 SDO 客户端、把结果记到归属者名下 */
 static void
 xfer_finish(co_master_result_t result, uint32_t abortCode) {
     /* 关客户端是必需的：CO_SDOclientClose() 会把状态置回 IDLE，而
      * CO_SDOclient_receive() 只在状态非 IDLE 时才收报文（见上游实现），
      * 所以这一步等于关掉该 SDO 通道的接收，避免关事务后还有报文写进来。 */
     CO_SDOclientClose(&s_co->SDOclient[0]);
+    s_lastDir = s_dir;   /* 记下方向，s_dir 马上要清零 */
     s_dir = XFER_IDLE;
     s_result = result;
     s_abort = abortCode;
+    /* 归属者【保留】—— 结果等着它来取。取走之前别人不能发起新事务，
+     * 否则这个结果就被覆盖了，归属者会把「没发出去的步骤」当成成功。 */
+    s_result_ready = true;
+    s_settled_tick = HAL_GetTick();
+}
+
+/** @brief 回收没人管的事务状态，防止一个掉队的调用方占死客户端 */
+static void
+reap(void) {
+    uint32_t now = HAL_GetTick();
+    if (s_dir != XFER_IDLE) {
+        if ((uint32_t)(now - s_xfer_tick) >= CO_MASTER_ORPHAN_TIMEOUT_MS) {
+            xfer_finish(CO_MASTER_ERR_TIMEOUT, (uint32_t)CO_SDO_AB_TIMEOUT);
+        }
+    } else if (s_result_ready) {
+        if ((uint32_t)(now - s_settled_tick) >= CO_MASTER_ORPHAN_TIMEOUT_MS) {
+            s_result_ready = false;
+        }
+    }
 }
 
 /** @brief 发起事务前的公共检查与客户端配置 */
@@ -61,6 +106,13 @@ xfer_begin(uint8_t nodeId, xfer_dir_t dir) {
     if (s_dir != XFER_IDLE) {
         s_startErr = CO_MASTER_START_BUSY;
         return false; /* 上一次事务还没结束 */
+    }
+    if (s_result_ready) {
+        /* 上一条事务的结果还没被它的主人取走。正常路径下到不了这里
+         * （调用方过闸门时会当场取走），到了说明有调用方绕过了闸门 ——
+         * 拒绝比把别人待取的结果覆盖掉安全。 */
+        s_startErr = CO_MASTER_START_BUSY;
+        return false;
     }
     if ((nodeId == 0U) || (nodeId > 127U)) {
         s_startErr = CO_MASTER_START_BAD_NODE;
@@ -88,11 +140,13 @@ xfer_begin(uint8_t nodeId, xfer_dir_t dir) {
      * CO_SDOclientUploadInitiate()/DownloadInitiate() 里给。 */
 
     s_dir = dir;
+    s_owner = nodeId;        /* 这笔事务从这个节点名下走 */
     s_abort = 0;
     s_result = CO_MASTER_OK;
     s_len = 0;
     s_startErr = CO_MASTER_START_OK;
     s_lastTick = HAL_GetTick();
+    s_xfer_tick = s_lastTick;
     return true;
 }
 
@@ -106,6 +160,13 @@ co_master_init(CO_t* co, uint8_t localNodeId) {
     s_result = CO_MASTER_OK;
     s_abort = 0;
     s_len = 0;
+    s_owner = 0;
+    s_result_ready = false;
+    s_settled_tick = 0;
+    s_xfer_tick = 0;
+    s_index = 0;
+    s_subIndex = 0;
+    s_lastDir = XFER_READ;
 }
 
 bool_t
@@ -121,6 +182,8 @@ co_master_start_read(uint8_t nodeId, uint16_t index, uint8_t subIndex, uint16_t 
         return false;
     }
 
+    s_index = index;
+    s_subIndex = subIndex;
     return true;
 }
 
@@ -152,11 +215,15 @@ co_master_start_write(uint8_t nodeId, uint16_t index, uint8_t subIndex, const vo
         return false;
     }
 
+    s_index = index;
+    s_subIndex = subIndex;
     return true;
 }
 
-void
-co_master_poll(void) {
+/** @brief 推进当前事务，非阻塞。只由 co_master_step_gate 调用 ——
+  *        轮询和取结果放在同一处，结果就不会被别人截走。 */
+static void
+master_poll(void) {
     if ((s_co == NULL) || (s_dir == XFER_IDLE)) {
         return;
     }
@@ -206,9 +273,74 @@ co_master_poll(void) {
     xfer_finish(CO_MASTER_OK, 0);
 }
 
+co_master_owner_t
+co_master_owner_of(uint8_t nodeId) {
+    reap();
+
+    if (s_dir != XFER_IDLE) {
+        /* 事务在跑：只有它的归属者该等它，别人看到的是「别人占着」 */
+        return (s_owner == nodeId) ? CO_MASTER_MINE : CO_MASTER_OTHER;
+    }
+    if (s_result_ready) {
+        return (s_owner == nodeId) ? CO_MASTER_SETTLED : CO_MASTER_OTHER;
+    }
+    return CO_MASTER_FREE;
+}
+
 bool_t
-co_master_busy(void) {
-    return (s_dir != XFER_IDLE) ? true : false;
+co_master_take_result(uint8_t nodeId, co_master_status_t* out) {
+    if ((s_dir != XFER_IDLE) || !s_result_ready || (s_owner != nodeId)) {
+        return false;
+    }
+    if (out != NULL) {
+        out->result = s_result;
+        out->abort  = s_abort;
+    }
+    s_result_ready = false;   /* 读一次就消费 */
+    return true;
+}
+
+co_sdo_step_t
+co_master_step_gate(uint8_t nodeId, uint32_t deadline_ms, co_master_status_t* out) {
+    master_poll();
+
+    /* 兜底：我自己的事务超过预算还没结束，强制按超时收尾。
+     * SDO 客户端内部有自己的超时，这一道只是保证状态机在任何情况下都能往下走。 */
+    if ((s_dir != XFER_IDLE) && (s_owner == nodeId)
+        && ((int32_t)(HAL_GetTick() - deadline_ms) >= 0)) {
+        xfer_finish(CO_MASTER_ERR_TIMEOUT, (uint32_t)CO_SDO_AB_TIMEOUT);
+    }
+
+    switch (co_master_owner_of(nodeId)) {
+    case CO_MASTER_FREE:
+        return CO_SDO_STEP_NEXT;
+
+    case CO_MASTER_SETTLED: {
+        co_master_status_t st = { CO_MASTER_OK, 0 };
+        (void)co_master_take_result(nodeId, &st);
+        if (out != NULL) {
+            *out = st;
+        }
+        if (st.result != CO_MASTER_OK) {
+            /* 事务失败只在这一个地方落日志，而且带上**对象**。
+             * 少了这一段，失败会一路静默到「电机不转但串口什么都没说」；
+             * 只写节点不写对象，则只能知道「被拒了」，还得再猜一轮是哪个。 */
+            printf("[SDO] node=%u %s 0x%04X.%02X 失败: %s abort=0x%08lX\r\n",
+                   (unsigned)nodeId,
+                   (s_lastDir == XFER_WRITE) ? "写" : "读",
+                   (unsigned)s_index, (unsigned)s_subIndex,
+                   co_master_result_name(st.result), (unsigned long)st.abort);
+            return CO_SDO_STEP_FAIL;
+        }
+        return CO_SDO_STEP_DONE;
+    }
+
+    case CO_MASTER_MINE:
+    case CO_MASTER_OTHER:
+    default:
+        /* 等。注意这里不判 deadline —— 被别人占着不算我超时。 */
+        return CO_SDO_STEP_WAIT;
+    }
 }
 
 co_master_start_err_t
@@ -230,14 +362,15 @@ co_master_start_error_name(co_master_start_err_t err) {
     }
 }
 
-co_master_result_t
-co_master_get_result(void) {
-    return s_result;
-}
-
-uint32_t
-co_master_get_abort(void) {
-    return s_abort;
+const char*
+co_master_result_name(co_master_result_t result) {
+    switch (result) {
+        case CO_MASTER_OK:          return "成功";
+        case CO_MASTER_ERR_ARG:     return "参数非法/客户端不可用";
+        case CO_MASTER_ERR_ABORT:   return "从站拒绝（SDO abort）";
+        case CO_MASTER_ERR_TIMEOUT: return "从站不应答（超时）";
+        default:                    return "?";
+    }
 }
 
 size_t

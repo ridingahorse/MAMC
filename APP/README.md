@@ -9,13 +9,17 @@
   每秒把收到的帧打到串口，方便对着 PCAN-View 之类工具交叉验证。
 - **`cia402/`** —— CiA 402 驱动 profile 的使能状态机 + 运动阶段，见下。
 
-主循环里每轮依次调三个函数，顺序有意义：
+主循环里每轮依次调两个函数，顺序有意义：
 
 ```c
 canopen_app_process();   /* 协议栈非实时部分：NMT / SDO 服务器 / 心跳 */
-co_master_poll();        /* 推进 SDO 事务（底层） */
-cia402_process();        /* 读事务结果，决定下一步（业务） */
+motor_ctrl_process();    /* 应用侧状态机：内部再分发到 co_init / cia402 */
+test_mode_switch(tick);  /* 测试脚本，见 test/test.h */
 ```
+
+SDO 事务不再需要单独的 `co_master_poll()`：推进、归属判断、取结果都收在
+`co_master_step_gate()` 里，由各个状态机在自己的 tick 中调用（见
+`framework/canopen/canopen_master.h` 的说明）。
 
 ### `cia402/`
 

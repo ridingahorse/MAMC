@@ -53,7 +53,7 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
     },
     .x1401_RPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x05,
-        .COB_IDUsedByRPDO = 0x00000281,
+        .COB_IDUsedByRPDO = 0x00000184,   /* 接收 slave2 (node=4) */
         .transmissionType = 0xFE,
         .eventTimer = 0x0000
     },
@@ -123,7 +123,7 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
     },
     .x1801_TPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x06,
-        .COB_IDUsedByTPDO = 0x00000301,
+        .COB_IDUsedByTPDO = 0x00000204,   /* 发给 slave2 (node=4) */
         .transmissionType = 0xFE,
         .inhibitTime = 0x0000,
         .eventTimer = 0x0000,
@@ -255,6 +255,12 @@ typedef struct {
     OD_obj_var_t o_2003_statusword;
     OD_obj_var_t o_2004_actual_position;
     OD_obj_var_t o_2005_actual_velocity;
+    OD_obj_var_t o_2010_controlword;
+    OD_obj_var_t o_2011_target_position;
+    OD_obj_var_t o_2012_target_velocity;
+    OD_obj_var_t o_2013_statusword;
+    OD_obj_var_t o_2014_actual_position;
+    OD_obj_var_t o_2015_actual_velocity;
 } ODObjs_t;
 
 static CO_PROGMEM ODObjs_t ODObjs = {
@@ -1151,6 +1157,36 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .dataOrig = &OD_RAM.x2005_actual_velocity,
         .attribute = ODA_SDO_RW | ODA_TRPDO | ODA_MB,
         .dataLength = 4
+    },
+    .o_2010_controlword = {
+        .dataOrig = &OD_RAM.x2010_controlword,
+        .attribute = ODA_SDO_RW | ODA_TRPDO | ODA_MB,
+        .dataLength = 2
+    },
+    .o_2011_target_position = {
+        .dataOrig = &OD_RAM.x2011_target_position,
+        .attribute = ODA_SDO_RW | ODA_TRPDO | ODA_MB,
+        .dataLength = 4
+    },
+    .o_2012_target_velocity = {
+        .dataOrig = &OD_RAM.x2012_target_velocity,
+        .attribute = ODA_SDO_RW | ODA_TRPDO | ODA_MB,
+        .dataLength = 4
+    },
+    .o_2013_statusword = {
+        .dataOrig = &OD_RAM.x2013_statusword,
+        .attribute = ODA_SDO_RW | ODA_TRPDO | ODA_MB,
+        .dataLength = 2
+    },
+    .o_2014_actual_position = {
+        .dataOrig = &OD_RAM.x2014_actual_position,
+        .attribute = ODA_SDO_RW | ODA_TRPDO | ODA_MB,
+        .dataLength = 4
+    },
+    .o_2015_actual_velocity = {
+        .dataOrig = &OD_RAM.x2015_actual_velocity,
+        .attribute = ODA_SDO_RW | ODA_TRPDO | ODA_MB,
+        .dataLength = 4
     }
 };
 
@@ -1198,6 +1234,12 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2003, 0x01, ODT_VAR, &ODObjs.o_2003_statusword, NULL},
     {0x2004, 0x01, ODT_VAR, &ODObjs.o_2004_actual_position, NULL},
     {0x2005, 0x01, ODT_VAR, &ODObjs.o_2005_actual_velocity, NULL},
+    {0x2010, 0x01, ODT_VAR, &ODObjs.o_2010_controlword, NULL},
+    {0x2011, 0x01, ODT_VAR, &ODObjs.o_2011_target_position, NULL},
+    {0x2012, 0x01, ODT_VAR, &ODObjs.o_2012_target_velocity, NULL},
+    {0x2013, 0x01, ODT_VAR, &ODObjs.o_2013_statusword, NULL},
+    {0x2014, 0x01, ODT_VAR, &ODObjs.o_2014_actual_position, NULL},
+    {0x2015, 0x01, ODT_VAR, &ODObjs.o_2015_actual_velocity, NULL},
     {0x0000, 0x00, 0, NULL, NULL}
 };
 

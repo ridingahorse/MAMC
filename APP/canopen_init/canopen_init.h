@@ -27,6 +27,7 @@
      CO_INIT_READ_IDENTITY,      /**< 读 0x1018 vendor ID */
      CO_INIT_READ_ERROR_REG,     /**< 读 0x1001 错误寄存器 */
      CO_INIT_CFG_HEARTBEAT,      /**< 写 0x1017 心跳生产者周期 */
+     CO_INIT_PROBE_PDO,          /**< 回读驱动器的 PDO 参数（只读诊断，不判故障） */
      CO_INIT_CFG_PDO,            /**< 配置 PDO 通讯+映射 */
      CO_INIT_ENTER_OP,           /**< 发 NMT 进 OP，等心跳确认 */
     CO_INIT_DONE,               /**< 初始化完成（从站已在 OP） */
@@ -39,9 +40,26 @@
   * ═══════════════════════════════════════════════════════════════ */
  
  #define CO_INIT_PREOP_TIMEOUT_MS   5000U
- #define CO_INIT_SDO_TIMEOUT_MS      500U
- #define CO_INIT_PDO_TIMEOUT_MS     1000U
- #define CO_INIT_OP_TIMEOUT_MS      3000U
+#define CO_INIT_SDO_TIMEOUT_MS      500U
+#define CO_INIT_PDO_TIMEOUT_MS     1000U
+#define CO_INIT_OP_TIMEOUT_MS      3000U
+
+/* 心跳：0x1017 是从站【生产】周期，0x1016 是主站【消费】超时。
+ * 消费超时必须**严格大于**生产周期 —— 两者取相等时，每一拍都踩在边界上，
+ * 丢一帧就判心跳丢失、下一帧又判回在线，HBstate 反复抖动。而
+ * 「等 PRE-OP」「等进 OP」都以 HBstate 为判据，结果是每次上电能不能
+ * 走完初始化全凭运气。取 3 倍是 CiA 301 的惯例。 */
+#define CO_INIT_HB_PRODUCER_MS     1000U
+#define CO_INIT_HB_TIMEOUT_MS      3000U
+
+/* 故障重试：总线上一次干扰就可能让某个从站掉线。若把 FAULT 当成终点，
+ * 这块板子就再也不会去救那个轴 —— 只能整机断电。所以允许有限次重试，
+ * 每次从头走一遍（等 PRE-OP → 读信息 → 配心跳 → 配 PDO → 进 OP）。
+ * 次数必须有限：真接错线时无限重试会刷爆串口、还会掩盖故障。 */
+#define CO_INIT_FAULT_RETRY_MAX    3U      /**< 故障后最多重来几次 */
+#define CO_INIT_FAULT_RETRY_MS     2000U   /**< 每次重来前的等待（ms） */
+
+#define CO_INIT_MAX_SLAVES         8U     /**< 最大从站数量，受 0x1016 心跳消费者表限制 */
  
  /* ═══════════════════════════════════════════════════════════════
   *  PDO 配置描述（静态，多个从站可共享）
@@ -129,22 +147,26 @@ typedef struct {
   * ═══════════════════════════════════════════════════════════════ */
  
  /**
-   * @brief  启动通用初始化，绑定协议栈与从站
-   * @param  co       协议栈实例
-   * @param  nodeId   从站节点号
-   * @param  pdo_cfg  PDO 配置表（NULL=不配置，用从站默认映射）
-   */
- void co_init_start(CO_t* co, uint8_t nodeId, const co_pdo_config_t* pdo_cfg);
- 
+  * @brief  启动通用初始化，绑定协议栈与从站
+  * @param  idx      从站实例索引（0 ~ CO_INIT_MAX_SLAVES-1）
+  * @param  co       协议栈实例
+  * @param  nodeId   从站节点号
+  * @param  pdo_cfg  PDO 配置表（NULL=不配置，用从站默认映射）
+  */
+ void co_init_start(uint8_t idx, CO_t* co, uint8_t nodeId, const co_pdo_config_t* pdo_cfg);
+
  /**
-   * @brief  状态机推进，主循环每周期调用
+   * @brief  状态机推进，主循环每周期调用。内部自动检查 SDO 忙闲，
+   *         若别的从站正在用 SDO 则跳过本次，实现令牌式串行化。
+   * @param  idx  从站实例索引
    */
- void co_init_process(void);
- 
+ void co_init_process(uint8_t idx);
+
  /**
   * @brief  是否初始化完成（从站已进 OP）
+  * @param  idx  从站实例索引
   */
-bool_t co_init_done(void);
+bool_t co_init_done(uint8_t idx);
 
 /**
   * @brief  运行时重新配置 PDO 并重启从站。
@@ -152,21 +174,30 @@ bool_t co_init_done(void);
   *         CFG_PDO → ENTER_OP 流程。用于切换运行模式（速度/位置）。
   * @pre    调用前 cia402 应已停机（disable operation），否则从站
   *         在 OP 下收到 PRE-OP 命令时 PDO 会被禁用，可能丢帧。
+  * @param  idx      从站实例索引
   * @param  new_cfg  新的 PDO 配置表
   */
-void co_init_restart(const co_pdo_config_t* new_cfg);
- 
+void co_init_restart(uint8_t idx, const co_pdo_config_t* new_cfg);
+
  /**
    * @brief  查询当前状态
    */
- co_init_state_t co_init_get_state(void);
- 
+ co_init_state_t co_init_get_state(uint8_t idx);
+
  /**
-   * @brief  获取故障码
-   */
- uint16_t co_init_get_fault_code(void);
+  * @brief  获取故障码
+  */
+uint16_t co_init_get_fault_code(uint8_t idx);
+
+/**
+  * @brief  手动发送一帧 SYNC（用于 sync_period_us=0 的手动同步模式）
+  *
+  * 从站 RPDO 配置为同步接收(tx_type=0x01)时，主站下发的 PDO 数据会被从站缓存，
+  * 直到收到 SYNC 帧才写入对象字典。调用本函数可精确控制多轴同步动作时刻。
+  */
+void co_sync_send(void);
  
- #ifdef __cplusplus
+#ifdef __cplusplus
  }
  #endif
  

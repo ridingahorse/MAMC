@@ -226,9 +226,10 @@ int main(void)
   co_master_init(canOpenNodeSTM32.canOpenStack, canOpenNodeSTM32.activeNodeID);
 
   /* 一站式配置：启动 CANopen 初始化，402 状态机由 motor_ctrl_process 在合适时机自动启动 */
-  motor_ctrl_set_config(canOpenNodeSTM32.canOpenStack, &slave1_config, CIA402_MODE_PROFILE_VEL);
-  printf("motor_ctrl config set: mode=velocity, slave=%u, %u kbit/s\r\n",
-         (unsigned)SLAVE1_NODE_ID, (unsigned)canOpenNodeSTM32.baudrate);
+  motor_ctrl_set_config(0, canOpenNodeSTM32.canOpenStack, &slave1_config, CIA402_MODE_PROFILE_VEL);
+  motor_ctrl_set_config(1, canOpenNodeSTM32.canOpenStack, &slave2_config, CIA402_MODE_PROFILE_VEL);
+  printf("motor_ctrl config set: slave1=node%u, slave2=node%u, %u kbit/s\r\n",
+         (unsigned)SLAVE1_NODE_ID, (unsigned)SLAVE2_NODE_ID, (unsigned)canOpenNodeSTM32.baudrate);
   /* USER CODE END 2 */
 
   /* Infinite loop */

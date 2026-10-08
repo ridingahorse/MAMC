@@ -248,6 +248,13 @@ typedef struct {
     uint16_t x2003_statusword;
     uint32_t x2004_actual_position;
     uint32_t x2005_actual_velocity;
+    /* slave2 独立过程数据（0x2010~0x2015），多从站时每个从站用自己的 OD 变量 */
+    uint16_t x2010_controlword;
+    uint32_t x2011_target_position;
+    uint32_t x2012_target_velocity;
+    uint16_t x2013_statusword;
+    uint32_t x2014_actual_position;
+    uint32_t x2015_actual_velocity;
 } OD_RAM_t;
 
 #ifndef OD_ATTR_PERSIST_COMM
@@ -308,6 +315,12 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_ENTRY_H2003 &OD->list[36]
 #define OD_ENTRY_H2004 &OD->list[37]
 #define OD_ENTRY_H2005 &OD->list[38]
+#define OD_ENTRY_H2010 &OD->list[39]
+#define OD_ENTRY_H2011 &OD->list[40]
+#define OD_ENTRY_H2012 &OD->list[41]
+#define OD_ENTRY_H2013 &OD->list[42]
+#define OD_ENTRY_H2014 &OD->list[43]
+#define OD_ENTRY_H2015 &OD->list[44]
 
 
 /*******************************************************************************
@@ -352,6 +365,12 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_ENTRY_H2003_statusword &OD->list[36]
 #define OD_ENTRY_H2004_actual_position &OD->list[37]
 #define OD_ENTRY_H2005_actual_velocity &OD->list[38]
+#define OD_ENTRY_H2010_controlword &OD->list[39]
+#define OD_ENTRY_H2011_target_position &OD->list[40]
+#define OD_ENTRY_H2012_target_velocity &OD->list[41]
+#define OD_ENTRY_H2013_statusword &OD->list[42]
+#define OD_ENTRY_H2014_actual_position &OD->list[43]
+#define OD_ENTRY_H2015_actual_velocity &OD->list[44]
 
 
 /*******************************************************************************

@@ -210,12 +210,21 @@ static const co_pdo_config_t slave2_vel_config = {
     .count                = sizeof(slave2_vel_channels) / sizeof(slave2_vel_channels[0]),
     .master_mappings      = slave2_vel_master_mappings,
     .master_mappings_count = sizeof(slave2_vel_master_mappings) / sizeof(slave2_vel_master_mappings[0]),
-    /* 【A/B 实验】slave2 暂时【不】走同步接收：use_sync=false 时从站
-     * 0x1400.02 保持 0xFE（收到即生效），与「单轴测试」分支里 node4 能正常
-     * 运行的那份配置完全一致；true 会被 canopen_init 覆盖成 0x01（同步接收，
-     * 等 SYNC 才生效），那是当前唯一与能转配置不同的、驱动器可见的差别。
-     * slave1 保持 true 作为对照。结论出来后再决定去留。 */
-    .use_sync             = false,
+    /* 同步接收（与 slave1、以及位置模式一致）：主站随时发的数据，从站先收进
+     * 缓存，等 SYNC 到了才统一写进自己的对象字典 —— 多轴「同时起步」靠的就是
+     * 这一条，也是两轴同步接收这个目标的最终形态。
+     *
+     * 代价，动这里之前要知道：
+     *   1. 【只发数据、不补 SYNC，从站那边不会生效】—— 缓存在下一条 SYNC 才落地。
+     *      PV 启动沿那三帧每帧后面都跟了一条 SYNC 就是为了它（见 pv_start_tick）；
+     *      应用层改目标速度也一样，改完要自己补 SYNC，否则两台轴各按各的节拍生效。
+     *   2. 从站的 PDO 参数（含 0x1400.02）存在【驱动器里】。改完必须给两台驱动器
+     *      断电重上，只烧主站的话驱动器还跑着上一次的传输类型，测的不是你改的东西。
+     *
+     * 这一条曾经被误记成「node4 旧固件不吃同步接收」，那个结论是错的：当时
+     * node4 的 0x60FF 恒为 0，真因是主站在「从站已在 OP」时把【主站自己的映射】
+     * 也一起跳过了，帧压根没带内容出去（见 canopen_init.c 的 CO_INIT_WAIT_PREOP）。 */
+    .use_sync             = true,
     .sync_period_us       = 0,
 };
 

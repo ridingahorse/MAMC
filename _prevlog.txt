@@ -1,0 +1,591 @@
+##### idx 99 (len 27167) #####
+这算成功了吗？肉眼看到的两个电机的转动方式和之前还是一模一样的。能不能改成先给一个轴发一个数据，然后延时一下，再给另一个轴发一个数据，然后再延时一下，发个sync，然后让两个轴一起转一起停，然后循环的？
+Hello world :CANopenNode STM32F4xx Demo!
+CANopen: allocated 5084 bytes for stack objects
+CANopen: node 1 up
+CO_INIT: start idx=0 node=2
+motor_ctrl: idx=0 set config, node=2, mode=3
+CO_INIT: start idx=1 node=4
+motor_ctrl: idx=1 set config, node=4, mode=3
+motor_ctrl config set: slave1=node2, slave2=node4, 500 kbit/s
+[PV] waiting enable: s1 init=0/0x0000 state=0/0x0000 | s2 init=0/0x0000 state=0/0x0000
+[PV] waiting enable: s1 init=0/0x0000 state=0/0x0000 | s2 init=0/0x0000 state=0/0x0000
+CO_INIT: node=4 vendor ID = 0x00000331
+CO_INIT: node=2 vendor ID = 0x00000331
+CO_INIT: node=2 閿欒瀵勫瓨鍣0x11锛堣鍛婏紝缁х画锛
+CO_INIT: node=4 ---- PDO parameter readback ----
+CO_INIT: node=4 ---- PDO parameter readback ----
+CO_INIT: node=4 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1400.01 RPDO1 COB-ID       = 0x40000204 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1400.02 RPDO1 transmission = 0x000000FF (1 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1600.00 RPDO1 map count    = 0x00000001 (1 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1600.01 RPDO1 map1         = 0x60400010 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1600.02 RPDO1 map2         = 0x00000000 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1600.03 RPDO1 map3         = 0x00000000 (4 byte)
+[PV] waiting enable: s1 init=4/0x0000 state=0/0x0000 | s2 init=4/0x0000 state=0/0x0000
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+[SDO] node=4 璇0x1401.01 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+CO_INIT: node=4   0x1401.01 RPDO2 COB-ID       = (read failed)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+[SDO] node=4 璇0x1601.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+CO_INIT: node=4   0x1601.00 RPDO2 map count    = (read failed)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+[SDO] node=4 璇0x1601.01 澶辫触: 浠庣欐嫆缁濓紙SDO abort锛abort=0x06020000
+CO_INIT: node=4   0x1601.01 RPDO2 map1         = (read failed)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+[SDO] node=4 璇0x1601.02 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+CO_INIT: node=4   0x1601.02 RPDO2 map2         = (read failed)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1800.01 TPDO1 COB-ID       = 0x40000184 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1800.02 TPDO1 transmission = 0x000000FF (1 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1800.05 TPDO1 event timer  = 0x00000000 (2 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1A00.00 TPDO1 map count    = 0x00000001 (1 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1A00.01 TPDO1 map1         = 0x60410010 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1A00.02 TPDO1 map2         = 0x00000000 (4 byte)
+CO_INIT: node=4 ---- readback end ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: SYNC producer enabled, period=0 us
+CO_INIT: node=2   0x1400.01 RPDO1 COB-ID       = 0x40000202 (4 byte)
+CO_INIT: node=2   0x1400.02 RPDO1 transmission = 0x000000FF (1 byte)
+CO_INIT: node=2   0x1600.00 RPDO1 map count    = 0x00000002 (1 byte)
+CO_INIT: node=2   0x1600.01 RPDO1 map1         = 0x60400010 (4 byte)
+CO_INIT: node=2   0x1600.02 RPDO1 map2         = 0x607A0020 (4 byte)
+CO_INIT: node=2   0x1600.03 RPDO1 map3         = 0x00000000 (4 byte)
+CO_INIT: node=2   0x1401.01 RPDO2 COB-ID       = 0x40000302 (4 byte)
+CO_INIT: node=2   0x1601.00 RPDO2 map count    = 0x00000002 (1 byte)
+CO_INIT: node=2   0x1601.01 RPDO2 map1         = 0x60400010 (4 byte)
+CO_INIT: node=2   0x1601.02 RPDO2 map2         = 0x607A0020 (4 byte)
+CO_INIT: node=2   0x1800.01 TPDO1 COB-ID       = 0x40000182 (4 byte)
+CO_INIT: node=2   0x1800.02 TPDO1 transmission = 0x000000FF (1 byte)
+CO_INIT: node=2   0x1800.05 TPDO1 event timer  = 0x00000000 (2 byte)
+CO_INIT: node=2   0x1A00.00 TPDO1 map count    = 0x00000001 (1 byte)
+CO_INIT: node=2   0x1A00.01 TPDO1 map1         = 0x60410010 (4 byte)
+CO_INIT: node=2   0x1A00.02 TPDO1 map2         = 0x00000000 (4 byte)
+CO_INIT: node=2 ---- readback end ----
+CiA402: init idx=1 node=4 mode=3
+motor_ctrl: idx=1 CiA402 started
+CO_INIT: node=4 杩涘叆 OP锛岄€氱敤鍒濆鍖栧畬鎴
+CiA402: init idx=0 node=2 mode=3
+motor_ctrl: idx=0 CiA402 started
+CO_INIT: node=2 杩涘叆 OP锛岄€氱敤鍒濮嬪寲瀹屾垚
+CiA402: node=4 init done, RUNNING
+[PV] both slaves RUNNING (velocity mode), start sync velocity test
+[PV] STOP: target +0 rpm (0 pps) queued on none (stop)
+CiA402: node=2 init done, RUNNING
+[PV] STOP: SYNC sent -> none (stop) take effect now
+[SDO] STOP +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +68ms node=2 0x603F.00 error code       = (read failed)
+[SDO] STOP +83ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] STOP +93ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] STOP +101ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +109ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +117ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] STOP +125ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +133ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +140ms node=4 0x603F.00 error code       = (read failed)
+[SDO] STOP +157ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] STOP +165ms node=4 0x6041.00 statusword (sdo) = 551 (0x00000227)
+[SDO] STOP +172ms node=4 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +181ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +189ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] STOP +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1: target +60 rpm (50000 pps) queued on slave1(node2) only
+CiA402: node=2 PV 鍚姩 鈶狅細0x000F + 鐩爣閫熷害 50000 pps
+CiA402: node=2 PV 鍚姩 鈶★細0x010F锛坆it8 缃綅锛
+CiA402: node=2 PV 鍚姩 鈶細0x000F锛坆it8 涓嬮檷娌匡級
+[PV] FWD-s1: SYNC sent -> slave1(node2) only take effect now
+[SDO] FWD-s1 +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] FWD-s1 +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] FWD-s1 +69ms node=2 0x603F.00 error code       = (read failed)
+[SDO] FWD-s1 +85ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] FWD-s1 +94ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] FWD-s1 +104ms node=2 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] FWD-s1 +113ms node=2 0x606C.00 actual vel       = 49838 (0x0000C2AE)
+[SDO] FWD-s1 +122ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] FWD-s1 +129ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] FWD-s1 +138ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] FWD-s1 +147ms node=4 0x603F.00 error code       = (read failed)
+[SDO] FWD-s1 +162ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] FWD-s1 +171ms node=4 0x6041.00 statusword (sdo) = 551 (0x00000227)
+[SDO] FWD-s1 +180ms node=4 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] FWD-s1 +188ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] FWD-s1 +195ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] FWD-s1 +250ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +500ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +750ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +1000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +1250ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +1500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +1750ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +2000ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +2250ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +2500ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +2750ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0227 vel=+0
+[PV] FWD-s1 +3000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0227 vel=+0
+[PV] STOP: target +0 rpm (0 pps) queued on none (stop)
+[PV] STOP: SYNC sent -> none (stop) take effect now
+[SDO] STOP +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +68ms node=2 0x603F.00 error code       = (read failed)
+[SDO] STOP +84ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] STOP +93ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] STOP +101ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +109ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +117ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] STOP +124ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +133ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +141ms node=4 0x603F.00 error code       = (read failed)
+[SDO] STOP +157ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] STOP +165ms node=4 0x6041.00 statusword (sdo) = 551 (0x00000227)
+[SDO] STOP +172ms node=4 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +181ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +189ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] STOP +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] STOP +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+0
+[PV] FWD-s2: target +60 rpm (50000 pps) queued on slave2(node4) only
+CiA402: node=4 PV 鍚姩 鈶狅細0x000F + 鐩爣閫熷害 50000 pps
+CiA402: node=4 PV 鍚姩 鈶★細0x010F锛坆it8 缃綅锛
+CiA402: node=4 PV 鍚姩 鈶細0x000F锛坆it8 涓嬮檷娌匡級
+[PV] FWD-s2: SYNC sent -> slave2(node4) only take effect now
+[SDO] FWD-s2 +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] FWD-s2 +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] FWD-s2 +69ms node=2 0x603F.00 error code       = (read failed)
+[SDO] FWD-s2 +85ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] FWD-s2 +94ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] FWD-s2 +104ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] FWD-s2 +112ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] FWD-s2 +120ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] FWD-s2 +128ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] FWD-s2 +136ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] FWD-s2 +145ms node=4 0x603F.00 error code       = (read failed)
+[SDO] FWD-s2 +161ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] FWD-s2 +169ms node=4 0x6041.00 statusword (sdo) = 1575 (0x00000627)
+[SDO] FWD-s2 +178ms node=4 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] FWD-s2 +187ms node=4 0x606C.00 actual vel       = 50142 (0x0000C3DE)
+[SDO] FWD-s2 +196ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] FWD-s2 +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] FWD-s2 +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] FWD-s2 +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] FWD-s2 +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] FWD-s2 +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] FWD-s2 +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] FWD-s2 +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] FWD-s2 +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] FWD-s2 +2250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] FWD-s2 +2500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] FWD-s2 +2750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] FWD-s2 +3000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] STOP: target +0 rpm (0 pps) queued on none (stop)
+[PV] STOP: SYNC sent -> none (stop) take effect now
+[SDO] STOP +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +68ms node=2 0x603F.00 error code       = (read failed)
+[SDO] STOP +84ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] STOP +93ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] STOP +100ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +109ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +117ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] STOP +125ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +133ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +141ms node=4 0x603F.00 error code       = (read failed)
+[SDO] STOP +157ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] STOP +165ms node=4 0x6041.00 statusword (sdo) = 1575 (0x00000627)
+[SDO] STOP +174ms node=4 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +182ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +190ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] STOP +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] SYNC-both: target +60 rpm (50000 pps) queued on slave1+slave2 (sync)
+[PV] SYNC-both: SYNC sent -> slave1+slave2 (sync) take effect now
+[SDO] SYNC-both +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-both +61ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-both +70ms node=2 0x603F.00 error code       = (read failed)
+[SDO] SYNC-both +86ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] SYNC-both +96ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] SYNC-both +106ms node=2 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] SYNC-both +115ms node=2 0x606C.00 actual vel       = 50142 (0x0000C3DE)
+[SDO] SYNC-both +124ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] SYNC-both +133ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-both +142ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-both +151ms node=4 0x603F.00 error code       = (read failed)
+[SDO] SYNC-both +167ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] SYNC-both +176ms node=4 0x6041.00 statusword (sdo) = 1575 (0x00000627)
+[SDO] SYNC-both +185ms node=4 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] SYNC-both +194ms node=4 0x606C.00 actual vel       = 49838 (0x0000C2AE)
+[SDO] SYNC-both +203ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] SYNC-both +250ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0627 vel=+59
+[PV] SYNC-both: sync lag s1=250ms s2=250ms (diff 0ms)
+[PV] SYNC-both +500ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0627 vel=+60
+[PV] SYNC-both +750ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0627 vel=+59
+[PV] SYNC-both +1000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0627 vel=+60
+[PV] SYNC-both +1250ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0627 vel=+59
+[PV] SYNC-both +1500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0627 vel=+60
+[PV] SYNC-both +1750ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0627 vel=+59
+[PV] SYNC-both +2000ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0627 vel=+60
+[PV] SYNC-both +2250ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0627 vel=+60
+[PV] SYNC-both +2500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0627 vel=+59
+[PV] SYNC-both +2750ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0627 vel=+60
+[PV] SYNC-both +3000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0627 vel=+59
+[PV] STOP: target +0 rpm (0 pps) queued on none (stop)
+[PV] STOP: SYNC sent -> none (stop) take effect now
+[SDO] STOP +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +68ms node=2 0x603F.00 error code       = (read failed)
+[SDO] STOP +84ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] STOP +93ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] STOP +101ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +109ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +117ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] STOP +125ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +133ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +140ms node=4 0x603F.00 error code       = (read failed)
+[SDO] STOP +157ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] STOP +165ms node=4 0x6041.00 statusword (sdo) = 1575 (0x00000627)
+[SDO] STOP +173ms node=4 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +182ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +189ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] STOP +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] REV-s2: target -60 rpm (-50000 pps) queued on slave2(node4) only
+[PV] REV-s2: SYNC sent -> slave2(node4) only take effect now
+[SDO] REV-s2 +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] REV-s2 +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] REV-s2 +69ms node=2 0x603F.00 error code       = (read failed)
+[SDO] REV-s2 +85ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] REV-s2 +94ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] REV-s2 +104ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] REV-s2 +112ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] REV-s2 +120ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] REV-s2 +128ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] REV-s2 +135ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] REV-s2 +144ms node=4 0x603F.00 error code       = (read failed)
+[SDO] REV-s2 +161ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] REV-s2 +169ms node=4 0x6041.00 statusword (sdo) = 1575 (0x00000627)
+[SDO] REV-s2 +178ms node=4 0x60FF.00 target vel       = -50000 (0xFFFF3CB0)
+[SDO] REV-s2 +187ms node=4 0x606C.00 actual vel       = 49857 (0x0000C2C1)
+[SDO] REV-s2 +196ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] REV-s2 +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] REV-s2 +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] REV-s2 +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] REV-s2 +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] REV-s2 +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] REV-s2 +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] REV-s2 +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] REV-s2 +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+59
+[PV] REV-s2 +2250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] REV-s2 +2500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] REV-s2 +2750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] REV-s2 +3000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+60
+[PV] STOP: target +0 rpm (0 pps) queued on none (stop)
+[PV] STOP: SYNC sent -> none (stop) take effect now
+[SDO] STOP +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +68ms node=2 0x603F.00 error code       = (read failed)
+[SDO] STOP +84ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] STOP +93ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] STOP +100ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +108ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +116ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] STOP +125ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +133ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +141ms node=4 0x603F.00 error code       = (read failed)
+[SDO] STOP +157ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] STOP +165ms node=4 0x6041.00 statusword (sdo) = 1575 (0x00000627)
+[SDO] STOP +174ms node=4 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +182ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +190ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] STOP +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] STOP +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+0
+[PV] FAST-s2: target +600 rpm (500000 pps) queued on slave2(node4) only
+[PV] FAST-s2: SYNC sent -> slave2(node4) only take effect now
+[SDO] FAST-s2 +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] FAST-s2 +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] FAST-s2 +69ms node=2 0x603F.00 error code       = (read failed)
+[SDO] FAST-s2 +85ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] FAST-s2 +94ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] FAST-s2 +104ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] FAST-s2 +113ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] FAST-s2 +122ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] FAST-s2 +131ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] FAST-s2 +140ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] FAST-s2 +149ms node=4 0x603F.00 error code       = (read failed)
+[SDO] FAST-s2 +165ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] FAST-s2 +174ms node=4 0x6041.00 statusword (sdo) = 551 (0x00000227)
+[SDO] FAST-s2 +183ms node=4 0x60FF.00 target vel       = 500000 (0x0007A120)
+[SDO] FAST-s2 +192ms node=4 0x606C.00 actual vel       = 116474 (0x0001C6FA)
+[SDO] FAST-s2 +201ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] FAST-s2 +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+171
+[PV] FAST-s2 +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+320
+[PV] FAST-s2 +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0227 vel=+471
+[PV] FAST-s2 +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+599
+[PV] FAST-s2 +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+599
+[PV] FAST-s2 +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+599
+[PV] FAST-s2 +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+599
+[PV] FAST-s2 +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+599
+[PV] FAST-s2 +2250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+599
+[PV] FAST-s2 +2500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+599
+[PV] FAST-s2 +2750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+599
+[PV] FAST-s2 +3000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0627 vel=+599
+[PV] STOP: target +0 rpm (0 pps) queued on none (stop)
+[PV] STOP: SYNC sent -> none (stop) take effect now
+[SDO] STOP +51ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] STOP +68ms node=2 0x603F.00 error code       = (read failed)
+[SDO] STOP +84ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] STOP +93ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] STOP +100ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] STOP +109ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] STOP +117ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] STOP +125ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] STOP +132ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+##### idx 100 (len 18939) #####
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+
+   **Project:** STM32F407 CANopen master firmware (`d:\vscode\project\mamc\MAMC`, branch `dm556-can`, git user `abcdzfg`), driving two Leadshine DM556-CAN stepper drives — node 2 (slave1, new firmware MS12B) and node 4 (slave2, old firmware MS12A); master node id 1; 500 kbit/s. Build: `make -j8`. Test harness in `APP/test/test.h` (freely modifiable per user).
+
+   **Standing user rules (still in force, stated verbatim earlier and repeatedly honored):**
+   - "如果要修改，就先告诉我修改方案先，等我同意了你再修改，并且不要屎山代码，架构要清晰。" (propose changes and wait for explicit approval before editing; no 屎山 code, keep the architecture clear.)
+   - Do not blame hardware: "你别老想着我硬件有问题啊。" / "问题百分百出在现在的这个代码里面".
+   - `APP/test/test.h` is test code: "因为这个是做测试的，随便修改，全删了再改也行".
+   - No diff preview in the user's environment → every change must be explicitly described (file, what, why).
+   - Change one variable at a time.
+
+   **Intent sequence in this session:**
+   1. Answer why node4 still didn't move after my previous fix (carried over from the prior context).
+   2. Approve and apply the `canopen_init.c` root-cause fix ("修改吧").
+   3. After that fix made node4 work but killed node2, diagnose and fix node2 ("你改的不对啊…ID为2的不转了，甚至我感觉它都没有使能").
+   4. After node2 was still dead in a cold-boot run, apply the `pv_step` split (which I had only proposed, not yet applied at that point).
+   5. Then, with both axes working, explain what actually changed vs. the previous working state (the user felt nothing had changed).
+   6. **Most recent intent (in progress):** "那就两轴都走同步接收吧，就是我主站可以在任意时刻发数据给从站，但从站接收后先存到暂存区，必须接收到sync才统一写进从站的对象字典。" — enable sync-receive (RPDO tx type 0x01, buffer-until-SYNC) on **both** axes.
+
+2. Key Technical Concepts:
+   - **CiA402 PV mode (0x6060 = 3)** data flow: master TPDO (0x202 / 0x204) → slave RPDO1: control word 0x6040(16) + target velocity 0x60FF(32); slave TPDO1 (0x182 / 0x184) → master RPDO: status word 0x6041(16) + actual velocity 0x606C(32).
+   - **Sync-receive RPDO semantics** (the user's stated definition): master may send at any time; the slave buffers the frame and only writes it into its object dictionary when a SYNC arrives; between two SYNCs only the **last** received frame survives. Enabled by `use_sync` → `canopen_init` writes the slave-side RPDO tx_type = 0x01 (only for RPDO channels, `comm_idx` 0x1400–0x15FF; TPDOs keep their async config).
+   - **`use_sync` side effects** (canopen_init.c:309-316, ~393-404): overrides only the slave-side RPDO transmission type to 0x01; the first config with `use_sync` also configures the master as SYNC producer once (`OD_set_u32(OD_ENTRY_H1005, 0, 0x40000080u, false); OD_set_u8(OD_ENTRY_H1019, 0, 0u, false); OD_set_u32(OD_ENTRY_H1006, 0, cfg->sync_period_us, false);` — period 0 = manual SYNC only).
+   - **Old-firmware PV ignition:** control-word bit8 (Halt) 1→0 falling edge required once per entry into PV; 0x60FF must be written first; the pulse is needed only once per PV entry. Sequence = 6 alternating steps (0: ①frame 0x000F+target, 1: SYNC, 2: ②frame 0x010F, 3: SYNC, 4: ③frame 0x000F, 5: SYNC), `CIA402_HALT_GAP_MS = 20U`.
+   - **Control word 0 is fatal:** a frame carrying 0x6040 = 0 drops the drive to Switch On Disabled (statusword bit6, `0x0670`); from there 0x000F cannot recover — the full 0x06 → 0x07 → 0x0F sequence is needed. Observed healthy: node2 `0x0637`, node4 `0x0227`; dead: `0x0670`.
+   - **`trans_step` aliasing bug:** `trans_step` was shared between the 402 transition sub-step (0 = write ctrl, 1 = read statusword) and the PV ignition step counter.
+   - **Deferred enter:** `fsm_dispatch` runs `fsm_enter(s)` only when `s->state != s->prev_state`, on the **next** `cia402_process` call after the state is assigned — creating a one-tick window.
+   - **Master-side PDO mapping is RAM, not EEPROM:** `apply_master_pdo_mapping()` writes `cfg->master_mappings` into the master's OD objects (0x1A00/0x1600/0x1A01/0x1601) then calls `CO_CANopenInitPDO()`. OD.c defaults happen to match channel 1 (0x1A00 = 0x20000010 + 0x20020020; 0x1600 = 0x20030010 + 0x20050020) but 0x1A01/0x1601 default to count **0**.
+   - **`CO_TPDOsendRequest()`** only sets `sendRequest = true`; the actual transmission happens in `CO_TPDO_process()` — hence frames must be spaced and a SYNC sent after each frame for sync-receive slaves.
+   - **node4's 0x606C lacks the sign** (documented in memory `node4-606c-no-sign.md`): commanded −50000 (drive's own OD reads 0xFFFF3CB0), motor physically reverses, yet 0x606C reads +50161/+49857.
+   - Node2's stored `0x1003.01 = 0x80208110` (CAN overrun) appears every run — a historical entry in the drive's OD, not a current fault; 0x603F read aborts with `0x06020000` (object does not exist) on both drives.
+
+3. Files and Code Sections:
+
+   - **APP/user_pdo_cfg_slave.h** (modified three times this session — most recent and most important)
+     - First edit: `slave2_vel_config.use_sync` true → **false**, with a (later proven wrong) comment claiming node4's firmware ignores sync-receive RPDO.
+     - Second edit: rewrote that comment to state the earlier conclusion was **wrong** (real cause = master-side mapping skipped) and that sync-receive for node4 was still untested; kept `.use_sync = false`.
+     - **Third/final edit (just applied):** `slave2_vel_config.use_sync` false → **true**:
+       ```c
+       /* 同步接收（与 slave1、以及位置模式一致）：主站随时发的数据，从站先收进
+        * 缓存，等 SYNC 到了才统一写进自己的对象字典 —— 多轴「同时起步」靠的就是
+        * 这一条，也是两轴同步接收这个目标的最终形态。
+        *
+        * 代价，动这里之前要知道：
+        *   1. 【只发数据、不补 SYNC，从站那边不会生效】—— 缓存在下一条 SYNC 才落地。
+        *      PV 启动沿那三帧每帧后面都跟了一条 SYNC 就是为了它（见 pv_start_tick）；
+        *      应用层改目标速度也一样，改完要自己补 SYNC，否则两台轴各按各的节拍生效。
+        *   2. 从站的 PDO 参数（含 0x1400.02）存在【驱动器里】。改完必须给两台驱动器
+        *      断电重上，只烧主站的话驱动器还跑着上一次的传输类型，测的不是你改的东西。
+        *
+        * 这一条曾经被误记成「node4 旧固件不吃同步接收」，那个结论是错的：当时
+        * node4 的 0x60FF 恒为 0，真因是主站在「从站已在 OP」时把【主站自己的映射】
+        * 也一起跳过了，帧压根没带内容出去（见 canopen_init.c 的 CO_INIT_WAIT_PREOP）。 */
+       .use_sync             = true,
+       ```
+     - Verified all four configs now `true` at lines 86 (slave1_vel), 149 (slave1_pos), 227 (slave2_vel), 282 (slave2_pos).
+
+   - **APP/canopen_init/canopen_init.c** (modified — the root-cause fix for node4)
+     - `CO_INIT_WAIT_PREOP`'s already-in-OP branch (was ~line 468) now conservatively also rebuilds the master-side mapping, with a long comment explaining that the slave-side config is power-cycle-persistent but the master-side mapping lives in RAM and must be rebuilt:
+       ```c
+       } else if (s->online && node->NMTstate == CO_NMT_OPERATIONAL) {
+           /* 从站已在 OP（上次配置过且掉电保存），从站侧的 PDO 配置可以跳过。
+            *
+            * 但【主站侧】的映射不能跳 —— 它们在 RAM 里，每次开机都是 OD.c 的
+            * 默认值，而重建只发生在 CO_INIT_CFG_PDO（见下面的
+            * apply_master_pdo_mapping 调用）。跳掉这一步，这个通道在主站这边
+            * 就是空跑的：TPDO 发不出实际内容、RPDO 收到的也进不了自己的 OD。
+            * 默认值恰好「通道 1 对、通道 2 空」（0x1A00/0x1600 有值，
+            * 0x1A01/0x1601 的 numberOfMapped... = 0），于是现象是 node2 照跑、
+            * node4 使能正常却 0x60FF 恒为 0、主站轮询读 0x0000 而 SDO 直读
+            * 驱动器是 0x0227 —— 踩过，别再把整个分支一起 DONE 掉。
+            * 主站本地操作，不动总线，从站留在 OP 也没关系。 */
+           apply_master_pdo_mapping(s->pdo_cfg);
+           printf("CO_INIT: node=%u already in OP, 只重建主站映射\r\n",
+                  (unsigned)s->node_id);
+           s->state = CO_INIT_DONE;
+       } else if (now_ms() >= s->deadline) {
+       ```
+     - `apply_master_pdo_mapping()` (lines 61-88) is defined earlier in the file (no forward declaration needed): writes `OD_set_u8(master_map, 0, 0, true)`, then `OD_set_u32(master_map, e+1, m->entries[e], true)`, then `OD_set_u8(master_map, 0, m->count, true)`, finishing with `CO_CANopenInitPDO(s_co, s_co->em, OD, s_co->NMT->nodeId, &errInfo);`.
+
+   - **APP/cia402/cia402.c** (modified — the `pv_step` split)
+     - `fsm_enter()` now resets both counters:
+       ```c
+       s->trans_step = 0;
+       /* PV 启动沿的步序，和 trans_step 一样进状态就归零。
+        * 两者必须分开计数：本函数是【下一拍】才跑的（fsm_dispatch 按
+        * state != prev_state 触发），所以「state 已置成 RUNNING、enter 还没跑」
+        * 之间存在一个窗口。这时 trans_step 还停在 402 转换留下的 1，
+        * pv_start_busy() 就会误判「启动沿正在走」，把 cia402_set_velocity 里那次
+        * 控制字写入挡掉 —— 而 *s->ctrl 此时还是 OD 初值 0，这一帧出去，
+        * 驱动器当场掉进 Switch On Disabled（0x0670），0x000F 再也唤不回来。踩过。 */
+       s->pv_step = 0;
+       ```
+     - `pv_start_busy()` now uses `pv_step` (comment extended with the "看的是 pv_step 而不是 trans_step" rationale):
+       ```c
+       static bool_t pv_start_busy(const cia402_slave_t* s) {
+           return (s->state == CIA402_RUNNING)
+               && (s->target_mode == CIA402_MODE_PROFILE_VEL)
+               && (s->pv_step >= 1u) && (s->pv_step <= 5u);
+       }
+       ```
+     - `pv_start_tick()`: `if (s->pv_step > 5u) return;`, `sync_step = ((s->pv_step & 1u) != 0u);`, `else if (s->pv_step == 0u)`, `else if (s->pv_step == 2u)` (with `s->pv_step = 0u;` on target-withdrawal), and `s->pv_step++;` at the end. `trans_step` now only appears in the 402 code paths (lines 143, 147, 154, 166, 190, 316, 346, 347, 363, 533).
+     - Unchanged, relevant: `fsm_dispatch` (537-543) `if (s->state != s->prev_state) { s->prev_state = s->state; fsm_enter(s); } fsm_tick(s);`; `case CIA402_ENABLE_OP` sets `s->state = CIA402_RUNNING;` on success; `case CIA402_RUNNING:`'s enter writes `*s->ctrl = CIA402_CMD_ENABLE_OP;` for all modes.
+
+   - **APP/cia402/cia402.h** (modified)
+     - Added after `uint8_t trans_step;`:
+       ```c
+       /* PV 启动沿步序（0~5，见 cia402.c 的 pv_start_tick）。
+        * 【不能和 trans_step 合用一个字段】：402 转换走完时它停在 1，而
+        * 「state 已置成 RUNNING、fsm_enter 还没跑」的那一拍会拿这个 1 误判成
+        * 「启动沿正在走」，把 set_velocity 写控制字那次挡掉，放一帧 0 出去、
+        * 驱动器掉进 Switch On Disabled。踩过。 */
+       uint8_t  pv_step;
+       ```
+
+   - **framework/canopen/OD/OD.c** (read only) — master OD defaults: `0x1A00` = count 2, `0x20000010` + `0x20020020`; `0x1600` = count 2, `0x20030010` + `0x20050020`; `0x1A01`/`0x1601`/`0x1602`/`0x1603` = count **0**; `0x1800` COB-ID `0x00000202` tx 0xFE; `0x1801` COB-ID `0x00000204` (comment "发给 slave2 (node=4)"); `0x1400` COB-ID `0x80000200`.
+
+   - **Memory files** (`C:\Users\Lenovo\.claude\projects\d--vscode-project-mamc-MAMC\memory\`):
+     - `node4-606c-no-sign.md` (pre-existing, read this session).
+     - **Created** `pdo-cfg-needs-drive-powercycle.md` (type: project) — records that slave-side PDO params (incl. 0x1400.02) live in the drives, that the master skips `CO_INIT_CFG_PDO` when a slave is already in OP, and therefore that any change to `APP/user_pdo_cfg_slave.h` requires a drive power cycle; notes this caused the wrong "node4 doesn't accept sync-receive" conclusion.
+     - `MEMORY.md` updated to two lines:
+       ```
+       - [node4 的 0x606C 不带符号](node4-606c-no-sign.md) — 反转时回读仍是正数，判断转向只能靠命令侧
+       - [改从站 PDO 参数要给驱动器断电](pdo-cfg-needs-drive-powercycle.md) — 只烧主站不算数，测的不是你改的东西
+       ```
+
+4. Errors and fixes:
+
+   - **node4 dead (0x60FF ≡ 0, master poll `s2 sts=0x0000` while SDO read 0x0227):** my initial diagnosis ("node4's old firmware ignores sync-receive RPDO") was **wrong** — I retracted it. Real cause: when a slave is already in OPERATIONAL at master boot, `CO_INIT_WAIT_PREOP` jumped straight to `CO_INIT_DONE`, skipping `CO_INIT_CFG_PDO` and therefore `apply_master_pdo_mapping()`; the master's own TPDO2/RPDO2 mappings (0x1A01/0x1601) default to count 0 in OD.c while channel 1's defaults happen to be correct. Fix: call `apply_master_pdo_mapping(s->pdo_cfg)` in the skip branch. Verified afterwards: node4 ran every commanded beat (`0x60FF=50000`, `0x606C=49838`, REV −50000, FAST 599 rpm) and master polls matched the drives.
+   - **node2 dead after the above fix (`0x6040=0` at first beat then 15, `0x6041` stuck at `0x0670`, shaft loose = not enabled):** cause = `trans_step` aliasing plus the deferred `fsm_enter`. In the window where `state == CIA402_RUNNING` but the enter action had not yet run, `trans_step` still held the 402 transition's leftover 1, so `pv_start_busy()` returned true and `cia402_set_velocity()` skipped writing `*s->ctrl = 0x000F`, putting the OD init value **0** on the wire; node2 (sync-receive) buffered it and latched it at the next SYNC → Switch On Disabled, unrecoverable. Fix: new dedicated `pv_step` field (reset in `fsm_enter`, used only by the ignition). Verified: both axes then ran, `[PV] SYNC-both: sync lag s1=250ms s2=250ms (diff 0ms)`.
+   - **My own false code comment:** the claim in `user_pdo_cfg_slave.h` that "node4 旧固件不吃同步接收…主站发过去的帧它一帧都没应用" was proven wrong and rewritten; I told the user I had corrected my own wrong comment.
+   - **User feedback moments:** "你改的不对啊，现在ID为4的转了，ID为2的不转了" (after the canopen_init fix); "不对，还是只有ID为4的电机转，ID为2的不转，而且电机轴还是很松，感觉根本没有使能" (after which I discovered my previous message had only been a proposal and applied the `pv_step` fix, saying so explicitly); "怎么感觉你啥也没改一样" (I explained the fixes restore behavior rather than add features, and that the earlier "working" state was luck-dependent).
+
+5. Problem Solving:
+
+   **Solved:** (a) node4's dead channel — master-side PDO mapping skipped on boot when the slave is already in OP; (b) node2's random death — `trans_step` shared between two state machines plus the deferred enter window. Both fixes verified by run logs: both axes ran in every beat, node2 healthy `0x0637`, node4 `0x0227`/`0x0627`, 0x60FF/0x606C followed commands, master polls matched SDO reads, sync lag diff 0 ms.
+
+   **Explanation delivered:** the observable motor behavior is intentionally identical to the earlier working state; what changed is that the earlier working state depended on (1) whether the drives had been power-cycled and (2) whether each axis's 402 enable finished before the test started — both were boot-timing/power-state dependent, which is why symptoms flip-flopped between runs. Also explained the benign log noise (node2's `0x1003.01 = 0x80208110` historical CAN-overrun entry; `0x603F` SDO aborts 0x06020000 because the object doesn't exist).
+
+   **Ongoing:** the just-applied sync-receive enablement for slave2 (all four `.use_sync` now `true`). Not yet validated on hardware; requires a drive power cycle because 0x1400.02 is stored in the drives and the master skips slave-side config when a slave is already in OP.
+
+6. All user messages:
+   - "修改吧" (approving the `canopen_init.c` skip-path fix: call `apply_master_pdo_mapping()` in the already-in-OP branch).
+   - "你改的不对啊，现在ID为4的转了，ID为2的不转了，甚至我感觉它都没有使能，因为我扭动它的轴，和断电的时候一样轻松" + full serial log (node4 working in FWD-s2/REV-s2/FAST-s2/SYNC-both; node2 `0x6040=0` first beat, `0x6041=0x0670` throughout; init showed "CO_INIT: node=4 already in OP, 只重建主站映射" and the same for node2).
+   - "不对，还是只有ID为4的电机转，ID为2的不转，而且电机轴还是很松，感觉根本没有使能" + full serial log (cold boot — full config: vendor IDs 0x00000331, PDO readback, "CO_INIT: SYNC producer enabled, period=0 us"; node2 still `0x6040=0`/`0x6041=0x0670`; pre-config readback showed node2's drive stored RPDO1 map = 0x6040 + 0x607A and 0x1400.02 = 0xFF).
+   - "现在确实两个电机都转了，但是和之前那个有啥区别？现在两个电机转的方式和之前那个一模一样，怎么感觉你啥也没改一样。" + full log (both axes working every beat; `[PV] SYNC-both: sync lag s1=250ms s2=250ms (diff 0ms)`).
+   - "那就两轴都走同步接收吧，就是我主站可以在任意时刻发数据给从站，但从站接收后先存到暂存区，必须接收到sync才统一写进从站的对象字典。"
+
+   (No security-sensitive instructions — no credentials, secrets, or sensitive files. The binding process constraints remain: propose edits and wait for approval; do not blame hardware; keep architecture clean; test.h is freely modifiable.)
+
+7. Pending Tasks:
+   - Report the sync-receive change to the user and the required test procedure (flash + power-cycle both drives), plus what to watch in the log.
+   - Validate on hardware that node4 works with `use_sync = true` (sync-receive) — if it regresses to "enabled but 0x60FF = 0 in its own beat", that would now be a genuine drive limitation, since the master side is proven clean.
+   - Optional/unrequested, previously offered: add a `REV-s1` beat in test.h to check whether node2's `0x606C` also loses the sign (node4's already known to).
+
+8. Current Work:
+
+   Immediately before this summary I applied the user's most recent request — enable sync-receive on both axes. I verified via grep that `use_sync` only forces the slave-side RPDO transmission type to 0x01 (`canopen_init.c:309-316`, `if (cfg->use_sync && is_rpdo_channel(ch)) v = 0x01u;`) and configures the master as a manual SYNC producer once (`0x1005 = 0x40000080`, `0x1019 = 0`, `0x1006 = sync_period_us = 0`). Then I edited `APP/user_pdo_cfg_slave.h` flipping `slave2_vel_config.use_sync` from `false` to `true` with a comment stating the buffering semantics, the two costs (data sent without a following SYNC never takes effect; drive-side PDO params require a drive power cycle), and the correction of the earlier wrong "node4 doesn't accept sync-receive" conclusion. Finally I ran `grep -n "use_sync" APP/user_pdo_cfg_slave.h && make -j8` — all four entries are `true` (lines 86, 149, 227, 282) and the build succeeded (`text 52260, data 1316, bss 10104, dec 63680, hex f8c0`). I had **not yet written my reply to the user** when the summary was requested.
+
+9. Optional Next Step:
+
+   Report the completed change and the test procedure, directly per the user's request "那就两轴都走同步接收吧，就是我主站可以在任意时刻发数据给从站，但从站接收后先存到暂存区，必须接收到sync才统一写进从站的对象字典。": state that `slave2_vel_config.use_sync` is now `true` (all four configs sync-receive), that the firmware is rebuilt, and that this test **requires power-cycling both drives** because 0x1400.02 lives in the drives and the master skips slave-side config when a slave is already in OP. Give the log checkpoints: both drives should still show `0x1400.02 = 1`, node4's own beats must still show `0x60FF = 50000` / `0x606C ≈ 50000` (a return to "使能正常但 0x60FF 恒为 0" would now point at the drive, since the master side is proven clean), and `[PV] SYNC-both: sync lag ... (diff 0ms)` should still appear. Also flag the operational cost for the real application: after any target change the app must send a SYNC itself, otherwise the slave keeps the buffered value until the next SYNC.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: C:\Users\Lenovo\.claude\projects\d--vscode-project-mamc-MAMC\1b569d0e-39ca-4e83-b19f-bb002a365089.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+The messages after this summary are the most recent messages from before compaction, kept verbatim. The summary was written without seeing them, so something it says has not happened yet may already have happened in them.

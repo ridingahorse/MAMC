@@ -1,0 +1,314 @@
+怎么又只有一个轴动，只有ID为2的动，ID为4的不动了，轴也很松，感觉没使能一样。怎么你的修改老有这个毛病
+
+Hello world :CANopenNode STM32F4xx Demo!
+CANopen: allocated 5084 bytes for stack objects
+CANopen: node 1 up
+CO_INIT: start idx=0 node=2
+motor_ctrl: idx=0 set config, node=2, mode=3
+CO_INIT: start idx=1 node=4
+motor_ctrl: idx=1 set config, node=4, mode=3
+motor_ctrl config set: slave1=node2, slave2=node4, 500 kbit/s
+[PV] waiting enable: s1 init=0/0x0000 state=0/0x0000 | s2 init=0/0x0000 state=0/0x0000
+[PV] waiting enable: s1 init=0/0x0000 state=0/0x0000 | s2 init=0/0x0000 state=0/0x0000
+CO_INIT: node=4 vendor ID = 0x00000331
+CO_INIT: node=2 vendor ID = 0x00000331
+CO_INIT: node=2 閿欒瀵勫瓨鍣0x11锛堣鍛婏紝缁х画锛
+CO_INIT: node=4 ---- PDO parameter readback ----
+CO_INIT: node=4 ---- PDO parameter readback ----
+CO_INIT: node=4 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1400.01 RPDO1 COB-ID       = 0x40000204 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1400.02 RPDO1 transmission = 0x000000FF (1 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1600.00 RPDO1 map count    = 0x00000001 (1 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1600.01 RPDO1 map1         = 0x60400010 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1600.02 RPDO1 map2         = 0x00000000 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1600.03 RPDO1 map3         = 0x00000000 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+[SDO] node=4 璇0x1401.01 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+CO_INIT: node=4   0x1401.01 RPDO2 COB-ID       = (read failed)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+[SDO] node=4 璇0x1601.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+CO_INIT: node=4   0x1601.00 RPDO2 map count    = (read failed)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+[SDO] node=4 璇0x1601.01 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+CO_INIT: node=4   0x1601.01 RPDO2 map1         = (read failed)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+[SDO] node=4 璇0x1601.02 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+CO_INIT: node=4   0x1601.02 RPDO2 map2         = (read failed)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1800.01 TPDO1 COB-ID       = 0x40000184 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1800.02 TPDO1 transmission = 0x000000FF (1 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1800.05 TPDO1 event timer  = 0x00000000 (2 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1A00.00 TPDO1 map count    = 0x00000001 (1 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1A00.01 TPDO1 map1         = 0x60410010 (4 byte)
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: node=4   0x1A00.02 TPDO1 map2         = 0x00000000 (4 byte)
+CO_INIT: node=4 ---- readback end ----
+CO_INIT: node=2 ---- PDO parameter readback ----
+CO_INIT: SYNC producer enabled, period=0 us
+CO_INIT: node=2   0x1400.01 RPDO1 COB-ID       = 0x40000202 (4 byte)
+CO_INIT: node=2   0x1400.02 RPDO1 transmission = 0x000000FF (1 byte)
+CO_INIT: node=2   0x1600.00 RPDO1 map count    = 0x00000002 (1 byte)
+[PV] waiting enable: s1 init=4/0x0000 state=0/0x0000 | s2 init=5/0x0000 state=0/0x0000
+CO_INIT: node=2   0x1600.01 RPDO1 map1         = 0x60400010 (4 byte)
+CO_INIT: node=2   0x1600.02 RPDO1 map2         = 0x607A0020 (4 byte)
+CO_INIT: node=2   0x1600.03 RPDO1 map3         = 0x00000000 (4 byte)
+CO_INIT: node=2   0x1401.01 RPDO2 COB-ID       = 0x40000302 (4 byte)
+CO_INIT: node=2   0x1601.00 RPDO2 map count    = 0x00000002 (1 byte)
+CO_INIT: node=2   0x1601.01 RPDO2 map1         = 0x60400010 (4 byte)
+CO_INIT: node=2   0x1601.02 RPDO2 map2         = 0x607A0020 (4 byte)
+CO_INIT: node=2   0x1800.01 TPDO1 COB-ID       = 0x40000182 (4 byte)
+CO_INIT: node=2   0x1800.02 TPDO1 transmission = 0x000000FF (1 byte)
+CO_INIT: node=2   0x1800.05 TPDO1 event timer  = 0x00000000 (2 byte)
+CO_INIT: node=2   0x1A00.00 TPDO1 map count    = 0x00000001 (1 byte)
+CO_INIT: node=2   0x1A00.01 TPDO1 map1         = 0x60410010 (4 byte)
+CO_INIT: node=2   0x1A00.02 TPDO1 map2         = 0x00000000 (4 byte)
+CO_INIT: node=2 ---- readback end ----
+CiA402: init idx=1 node=4 mode=3
+motor_ctrl: idx=1 CiA402 started
+CO_INIT: node=4 杩涘叆 OP锛岄€氱敤鍒濆鍖栧畬鎴
+CiA402: init idx=0 node=2 mode=3
+motor_ctrl: idx=0 CiA402 started
+CO_INIT: node=2 杩涘叆 OP锛岄€氱敤鍒濮嬪寲瀹屾垚
+CiA402: node=4 init done, RUNNING
+[PV] both slaves RUNNING (velocity mode), start sync-receive test
+[PV] SYNC-run: stage s1 -> +60 rpm @+0ms | s1 vel=+0 s2 vel=+0
+CiA402: node=2 init done, RUNNING
+CiA402: node=2 PV 鍚姩 憼锛x000F + 鐩爣閫熷害 50000 pps
+CiA402: node=2 PV 鍚姩 鈶★細0x010F锛坆it8 缃綅锛
+CiA402: node=2 PV 鍚姩 鈶細0x000F锛坆it8 涓嬮檷娌匡級
+[PV] SYNC-run: stage s2 -> +60 rpm @+200ms | s1 vel=+0 s2 vel=+0
+CiA402: node=4 PV 鍚姩 鈶狅x000F + 鐩爣閫熷害 50000 pps
+CiA402: node=4 PV 鍚姩 鈶★細0x010F锛坆it8 缃綅锛
+CiA402: node=4 PV 鍚姩 鈶細0x000F锛坆it8 涓嬮檷娌匡級
+[PV] SYNC-run: SYNC @+400ms | before: s1 vel=+60 s2 vel=+0
+[PV] SYNC-run: SYNC sent -> slave1+slave2 (sync) take effect now
+[SDO] SYNC-run +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-run +61ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-run +69ms node=2 0x603F.00 error code       = (read failed)
+[SDO] SYNC-run +86ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] SYNC-run +96ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] SYNC-run +106ms node=2 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] SYNC-run +115ms node=2 0x606C.00 actual vel       = 50142 (0x0000C3DE)
+[SDO] SYNC-run +124ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] SYNC-run +133ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-run +142ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-run +151ms node=4 0x603F.00 error code       = (read failed)
+[SDO] SYNC-run +167ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] SYNC-run +176ms node=4 0x6041.00 statusword (sdo) = 608 (0x00000260)
+[SDO] SYNC-run +185ms node=4 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] SYNC-run +194ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] SYNC-run +203ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] SYNC-run +250ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +500ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +750ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1250ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1500ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1750ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2250ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2750ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +3000ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run: slave2 never moved (feedback vel stayed 0)
+[PV] SYNC-stop: stage s1 -> +0 rpm @+0ms | s1 vel=+60 s2 vel=+0
+[PV] SYNC-stop: stage s2 -> +0 rpm @+200ms | s1 vel=+0 s2 vel=+0
+[PV] SYNC-stop: SYNC @+400ms | before: s1 vel=+0 s2 vel=+0
+[PV] SYNC-stop: SYNC sent -> slave1+slave2 (sync) take effect now
+[SDO] SYNC-stop +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-stop +61ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-stop +69ms node=2 0x603F.00 error code       = (read failed)
+[SDO] SYNC-stop +86ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] SYNC-stop +96ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] SYNC-stop +106ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] SYNC-stop +115ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] SYNC-stop +124ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] SYNC-stop +133ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-stop +142ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-stop +150ms node=4 0x603F.00 error code       = (read failed)
+[SDO] SYNC-stop +167ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] SYNC-stop +176ms node=4 0x6041.00 statusword (sdo) = 608 (0x00000260)
+[SDO] SYNC-stop +185ms node=4 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] SYNC-stop +194ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] SYNC-stop +202ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] SYNC-stop +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop: sync lag s1=250ms s2=250ms (diff 0ms)
+[PV] SYNC-stop +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run: stage s1 -> +60 rpm @+0ms | s1 vel=+0 s2 vel=+0
+[PV] SYNC-run: stage s2 -> +60 rpm @+200ms | s1 vel=+60 s2 vel=+0
+[PV] SYNC-run: SYNC @+400ms | before: s1 vel=+60 s2 vel=+0
+[PV] SYNC-run: SYNC sent -> slave1+slave2 (sync) take effect now
+[SDO] SYNC-run +51ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-run +61ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-run +70ms node=2 0x603F.00 error code       = (read failed)
+[SDO] SYNC-run +86ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] SYNC-run +96ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] SYNC-run +106ms node=2 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] SYNC-run +115ms node=2 0x606C.00 actual vel       = 49838 (0x0000C2AE)
+[SDO] SYNC-run +124ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] SYNC-run +133ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-run +142ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-run +151ms node=4 0x603F.00 error code       = (read failed)
+[SDO] SYNC-run +167ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] SYNC-run +176ms node=4 0x6041.00 statusword (sdo) = 608 (0x00000260)
+[SDO] SYNC-run +185ms node=4 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] SYNC-run +194ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] SYNC-run +203ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] SYNC-run +250ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +750ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1250ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1750ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2000ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2250ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2750ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +3000ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run: slave2 never moved (feedback vel stayed 0)
+[PV] SYNC-stop: stage s1 -> +0 rpm @+0ms | s1 vel=+60 s2 vel=+0
+[PV] SYNC-stop: stage s2 -> +0 rpm @+200ms | s1 vel=+0 s2 vel=+0
+[PV] SYNC-stop: SYNC @+400ms | before: s1 vel=+0 s2 vel=+0
+[PV] SYNC-stop: SYNC sent -> slave1+slave2 (sync) take effect now
+[SDO] SYNC-stop +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-stop +60ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-stop +70ms node=2 0x603F.00 error code       = (read failed)
+[SDO] SYNC-stop +86ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] SYNC-stop +95ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] SYNC-stop +106ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] SYNC-stop +115ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] SYNC-stop +124ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] SYNC-stop +133ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-stop +142ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-stop +151ms node=4 0x603F.00 error code       = (read failed)
+[SDO] SYNC-stop +167ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] SYNC-stop +176ms node=4 0x6041.00 statusword (sdo) = 608 (0x00000260)
+[SDO] SYNC-stop +185ms node=4 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] SYNC-stop +194ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] SYNC-stop +203ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] SYNC-stop +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop: sync lag s1=250ms s2=250ms (diff 0ms)
+[PV] SYNC-stop +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run: stage s1 -> +60 rpm @+0ms | s1 vel=+0 s2 vel=+0
+[PV] SYNC-run: stage s2 -> +60 rpm @+200ms | s1 vel=+59 s2 vel=+0
+[PV] SYNC-run: SYNC @+400ms | before: s1 vel=+59 s2 vel=+0
+[PV] SYNC-run: SYNC sent -> slave1+slave2 (sync) take effect now
+[SDO] SYNC-run +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-run +61ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-run +70ms node=2 0x603F.00 error code       = (read failed)
+[SDO] SYNC-run +86ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] SYNC-run +95ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] SYNC-run +105ms node=2 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] SYNC-run +114ms node=2 0x606C.00 actual vel       = 49838 (0x0000C2AE)
+[SDO] SYNC-run +123ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] SYNC-run +132ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-run +141ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-run +150ms node=4 0x603F.00 error code       = (read failed)
+[SDO] SYNC-run +166ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] SYNC-run +175ms node=4 0x6041.00 statusword (sdo) = 608 (0x00000260)
+[SDO] SYNC-run +184ms node=4 0x60FF.00 target vel       = 50000 (0x0000C350)
+[SDO] SYNC-run +192ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] SYNC-run +201ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] SYNC-run +250ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +750ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1250ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +1750ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2250ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2500ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +2750ms | s1 sts=0x0637 vel=+60 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run +3000ms | s1 sts=0x0637 vel=+59 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run: slave2 never moved (feedback vel stayed 0)
+[PV] SYNC-stop: stage s1 -> +0 rpm @+0ms | s1 vel=+60 s2 vel=+0
+[PV] SYNC-stop: stage s2 -> +0 rpm @+200ms | s1 vel=+0 s2 vel=+0
+[PV] SYNC-stop: SYNC @+400ms | before: s1 vel=+0 s2 vel=+0
+[PV] SYNC-stop: SYNC sent -> slave1+slave2 (sync) take effect now
+[SDO] SYNC-stop +51ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-stop +61ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-stop +70ms node=2 0x603F.00 error code       = (read failed)
+[SDO] SYNC-stop +86ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] SYNC-stop +95ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)
+[SDO] SYNC-stop +106ms node=2 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] SYNC-stop +114ms node=2 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] SYNC-stop +124ms node=2 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[SDO] SYNC-stop +132ms node=4 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-stop +142ms node=4 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=4 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-stop +150ms node=4 0x603F.00 error code       = (read failed)
+[SDO] SYNC-stop +166ms node=4 0x1003.01 last error       = 0 (0x00000000)
+[SDO] SYNC-stop +176ms node=4 0x6041.00 statusword (sdo) = 608 (0x00000260)
+[SDO] SYNC-stop +185ms node=4 0x60FF.00 target vel       = 0 (0x00000000)
+[SDO] SYNC-stop +193ms node=4 0x606C.00 actual vel       = 0 (0x00000000)
+[SDO] SYNC-stop +202ms node=4 0x1400.02 RPDO1 tx type    = 1 (0x00000001)
+[PV] SYNC-stop +250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop: sync lag s1=250ms s2=250ms (diff 0ms)
+[PV] SYNC-stop +500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1250ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1500ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +1750ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-stop +2000ms | s1 sts=0x0637 vel=+0 | s2 sts=0x0260 vel=+0
+[PV] SYNC-run: stage s1 -> +60 rpm @+0ms | s1 vel=+0 s2 vel=+0
+[PV] SYNC-run: stage s2 -> +60 rpm @+200ms | s1 vel=+60 s2 vel=+0
+[PV] SYNC-run: SYNC @+400ms | before: s1 vel=+59 s2 vel=+0
+[PV] SYNC-run: SYNC sent -> slave1+slave2 (sync) take effect now
+[SDO] SYNC-run +52ms node=2 0x6061.00 op mode display  = 3 (0x00000003)
+[SDO] SYNC-run +61ms node=2 0x6040.00 controlword (sdo) = 15 (0x0000000F)
+[SDO] node=2 璇0x603F.00 澶辫触: 浠庣珯鎷掔粷锛圫DO abort锛abort=0x06020000
+[SDO] SYNC-run +70ms node=2 0x603F.00 error code       = (read failed)
+[SDO] SYNC-run +86ms node=2 0x1003.01 last error       = -2145353456 (0x80208110)
+[SDO] SYNC-run +96ms node=2 0x6041.00 statusword (sdo) = 1591 (0x00000637)

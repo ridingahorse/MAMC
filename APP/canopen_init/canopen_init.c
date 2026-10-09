@@ -85,6 +85,20 @@ static void apply_master_pdo_mapping(const co_pdo_config_t* cfg)
     /* 重新初始化 PDO，使新映射生效 */
     uint32_t errInfo = 0;
     CO_CANopenInitPDO(s_co, s_co->em, OD, s_co->NMT->nodeId, &errInfo);
+
+    /* CO_CANopenInitPDO() 会借 CO_TPDO_init() 把主站每个 TPDO 的 sendRequest
+     * 无条件置起（CO_PDO.c 的 CO_TPDO_init：TPDO->sendRequest = true），它复用的
+     * 是「上电初始化」那条路径的语义 —— 上电时发一帧初始过程数据是合理的，但
+     * 这里是【重配】，主站又已经是 OPERATIONAL、TPDO 在 1ms 中断里发，于是重配
+     * 的那一刻就把 OD 里当时的过程数据真的喷到总线上去了。
+     *
+     * 而重配发生在什么时候：每个从站配完自己的 PDO 之后（本函数唯一的调用点之一），
+     * 此刻【另一个】从站往往已经在 OP、正走 CiA402 使能流程，它会把这帧吃下去。
+     * 内容由 cia402 负责（见 cia402_init 里对过程映象初值的处理），这里负责堵发送：
+     * 应用层要发的时候自己会调 CO_TPDOsendRequest()，重配期间不该有帧出去。 */
+    for (uint8_t i = 0; i < OD_CNT_TPDO; i++) {
+        s_co->TPDO[i].sendRequest = false;
+    }
 }
 
  /* 通道配置的步骤序列。注意它【对每个通道都一样】，第一个通道也不例外 ——
@@ -466,9 +480,26 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
                           || node->NMTstate == CO_NMT_INITIALIZING)) {
             s->state = CO_INIT_READ_IDENTITY;
         } else if (s->online && node->NMTstate == CO_NMT_OPERATIONAL) {
-            /* 从站已在 OP（上次配置过且掉电保存），跳过配置直接完成 */
-            printf("CO_INIT: node=%u already in OP, skip config\r\n", s->node_id);
-            s->state = CO_INIT_DONE;
+            /* 从站已在 OP —— 这一步【不能走任何近路】。
+             *
+             * 两种历史事故都出在这里，别再简化它：
+             *  1) 只重建主站映射就 DONE：主站侧映射在 RAM 里，每次开机都是 OD.c
+             *     的默认值，而默认值恰好「通道 1 对、通道 2 空」（0x1A00/0x1600 有值，
+             *     0x1A01/0x1601 的 numberOfMapped... = 0），现象是 node2 照跑、
+             *     node4 使能正常却 0x60FF 恒为 0、主站轮询读 0x0000 而 SDO 直读
+             *     驱动器是 0x0227。
+             *  2) 连从站侧的 PDO 参数一起跳过：那些参数存在【驱动器里】，用它自己
+             *     存着的那份。而「自己存着的那份」可能是出厂默认、也可能是上一次被
+             *     中断的配置 —— 主站复位不会让驱动器掉出 OP，所以「重启主站」这个
+             *     动作几乎必走这条分支。RPDO 传输类型一旦不是 0x01（同步接收），
+             *     两轴就退化成谁先收到谁先动，多轴同步整个失效。
+             *
+             * 正解：把从站请回 PRE-OP，从 PROBE_PDO 起完整重来一遍。从站留在 OP
+             * 的代价就是「这次开机用的是上次留下的东西」，而同步接收必须每次都由
+             * 主站亲手写进去才作数。CO_INIT_PDO_RECONFIG 就是干这个的现成状态。 */
+            printf("CO_INIT: node=%u already in OP, 请回 PRE-OP 重配 PDO\r\n",
+                   (unsigned)s->node_id);
+            s->state = CO_INIT_PDO_RECONFIG;
         } else if (now_ms() >= s->deadline) {
             s->fault = true;
             s->fault_code = CO_INIT_ERR_PREOP_TIMEOUT;

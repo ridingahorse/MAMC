@@ -6,7 +6,7 @@
   * 通用 CANopen 初始化（等PRE-OP、配心跳、配PDO、发NMT进OP）由 canopen_init
   * 模块完成，本模块不关心。
   *
-  * 流程：等OP → 设模式 → shutdown → switch_on → enable_op → RUNNING
+  * 流程：等OP → 设模式 → 参数 → shutdown → switch_on → enable_op → RUNNING
   * 全程非阻塞，靠 cia402_process() 周期驱动。
   */
  #include "cia402.h"
@@ -188,6 +188,14 @@ static void bind_od_ptrs(cia402_slave_t* s, uint16_t base)
      * fsm_tick 经 co_master_step_gate 发起 —— 发起和取结果必须在同一处，
      * 否则发出去的结果会被别的事务截走。 */
     s->trans_step = 0;
+    /* PV 启动沿的步序，和 trans_step 一样进状态就归零。
+     * 两者必须分开计数：本函数是【下一拍】才跑的（fsm_dispatch 按
+     * state != prev_state 触发），所以「state 已置成 RUNNING、enter 还没跑」
+     * 之间存在一个窗口。这时 trans_step 还停在 402 转换留下的 1，
+     * pv_start_busy() 就会误判「启动沿正在走」，把 cia402_set_velocity 里那次
+     * 控制字写入挡掉 —— 而 *s->ctrl 此时还是 OD 初值 0，这一帧出去，
+     * 驱动器当场掉进 Switch On Disabled（0x0670），0x000F 再也唤不回来。踩过。 */
+    s->pv_step = 0;
     /* 注意：这里【不清】s->retry。它记的是「这个轴重走过几次使能流程」，
      * 属于整个使能过程的状态，每次进状态都抹掉就等于无限重试。
      * 只有真正跑起来（CIA402_RUNNING）才清零。 */
@@ -236,13 +244,17 @@ static void bind_od_ptrs(cia402_slave_t* s, uint16_t base)
      case CIA402_RUNNING:
          s->retry = 0;   /* 真的跑起来了，重试预算归零 */
          printf("CiA402: node=%u init done, RUNNING\r\n", s->node_id);
-         /* CSP 下主机必须持续下发目标点。进场第一件事是把目标锁到【当前实际位置】，
-          * 否则会拿上一轮的残留目标（切换时被清零成 0）当指令发出去，
-          * 驱动器会直接朝 0 位飞车。
+         /* 进场第一件事：把控制字的【常驻值】摆成 0x000F。它是 RPDO 上的内容，
+          * 谁发帧谁就把它带出去 —— 留着初值 0 的话，任何一帧（set_velocity 的
+          * 周期重发就会）都让驱动器直接掉出 Operation enabled、状态字回 0x0670
+          * （Switch On Disabled），而且 0x000F 唤不回来，得重走 0x06→0x07→0x0F，
+          * 等于两轴一起哑掉、只能断电。这个坑踩过一次，别再把控制字留空。 */
+         *s->ctrl = CIA402_CMD_ENABLE_OP;
+         /* CSP 下主机必须持续下发目标点。目标锁到【当前实际位置】，否则会拿上一轮
+          * 的残留目标（切换时被清零成 0）当指令发出去，驱动器会直接朝 0 位飞车。
           * 这里能安全读 x2004：从站早在重配 PDO 后就回了 OP，TPDO1 一直以 10ms
           * 上报，等状态机走完 SET_MODE/CFG_PARAMS/shutdown… 早已收到若干帧。 */
          if (s->target_mode == CIA402_MODE_CSP) {
-             *s->ctrl           = CIA402_CMD_ENABLE_OP;
              *s->target_pos     = *s->actual_pos;
              s->scurve_active    = false;
              s->scurve_last_tick = now_ms();
@@ -262,6 +274,7 @@ static void bind_od_ptrs(cia402_slave_t* s, uint16_t base)
  * ═══════════════════════════════════════════════════════════════ */
 
 static void trajectory_tick(cia402_slave_t* s);
+static void pv_start_tick(cia402_slave_t* s, uint8_t idx);
 
 static void fsm_tick(cia402_slave_t* s) {
      CO_HBconsNode_t* node;
@@ -392,7 +405,10 @@ static void fsm_tick(cia402_slave_t* s) {
      /* ── enable operation ── */
     case CIA402_ENABLE_OP:
         if (cia402_transition_tick(s, CIA402_CMD_ENABLE_OP, CIA402_STS_OP_ENABLED)) {
-            s->state = CIA402_RUNNING;   /* 进OP后下发该模式参数 */
+            /* 使能完成。速度模式还欠一次 bit8 启动触发，那个由 RUNNING 里的
+             * pv_start_tick 补 —— 它不能放在这里：手册要求目标速度先写好，
+             * 而此刻 0x60FF 刚被 CFG_PARAMS 清成 0。 */
+            s->state = CIA402_RUNNING;
         } else if (s->fault) {
             s->state = CIA402_FAULT;
         }
@@ -502,6 +518,7 @@ static void fsm_tick(cia402_slave_t* s) {
              s->state = CIA402_WAIT_OP;
              break;
          }
+         pv_start_tick(s, idx);   /* PV：补一次 bit8 下降沿启动触发（PP/CSP 不走） */
          trajectory_tick(s);
          break;
 
@@ -533,6 +550,115 @@ static void fsm_tick(cia402_slave_t* s) {
      fsm_tick(s);
  }
  
+ /* 启动沿是否【正在走】—— ① 已经发出去、③ 还没走完的那一段（步 1~5）。
+  * 这一段控制字归 pv_start_tick 独占：沿靠 0x000F→0x010F→0x000F 三帧的【顺序】
+  * 成立，谁再插一帧 0x000F，中间那拍 halt 就被冲掉，沿不复存在。
+  * cia402_set_velocity 的周期重发就是这样一个写入者，所以它必须问过这里（见该函数）。
+  *
+  * 步 0【不算】占用：那时 ① 还没发，而 set_velocity 正要靠写 0x000F 把驱动器留在
+  * Operation enabled。把它也挡掉，发出去的帧就带着控制字的初值 0，驱动器立刻掉出
+  * 使能再也回不来 —— 两轴一起哑掉。踩过。
+  *
+  * 看的是 pv_step 而不是 trans_step：后者是 402 使能转换的子步骤，在
+  * 「state 已置成 RUNNING、fsm_enter 还没跑」的那一拍里它还停在 1，
+  * 会让这里误判成「沿正在走」—— 又回到上面那个初值 0 的坑。见 fsm_enter。 */
+ static bool_t pv_start_busy(const cia402_slave_t* s) {
+     return (s->state == CIA402_RUNNING)
+         && (s->target_mode == CIA402_MODE_PROFILE_VEL)
+         && (s->pv_step >= 1u) && (s->pv_step <= 5u);
+ }
+
+ /* ═══════════════════════════════════════════════════════════════
+  *  速度模式启动触发（PV 专属，PP / CSP 绝不走这里）
+  *
+  *  旧固件（MS12A/MS10A）的 PV 速度发生器要控制字 bit8 走一次 1→0 的下降沿
+  *  才启动：402 状态机已经 Operation Enabled、0x6060=3、0x60FF 也写好了目标
+  *  速度，只给 0x000F 电机照样不转（0x606C 恒为 0、无报错、电机保持励磁）。
+  *  新固件（MS12B/MS12C）没有这条厂商特殊逻辑，兼容该时序，所以不做固件区分。
+  *
+  *  手册 4.4 的两条硬约束，决定了这段代码的形状：
+  *    1. 目标速度必须先写好，再做 bit8 跳变 —— 脉冲早于速度设置【无效】；
+  *    2. 脉冲每次切入 PV 模式只执行一次，运行中更新 0x60FF 不需要重复。
+  *
+  *  所以触发点不能放在使能那一刻：那时 0x60FF 刚被 CFG_PARAMS 清成 0，
+  *  打出来的沿是废的，而这唯一的一次机会就用掉了（踩过这个坑）。
+  *  正确时机是「上层第一次下达非零速度指令之后」，也就是 RUNNING 里。
+  *
+  *  步序（每步间隔 CIA402_HALT_GAP_MS，6 步走完 ≈120ms）：
+  *    0: ① 0x000F + 目标速度 —— 确保目标先上总线（约束 1）
+  *    1:    SYNC
+  *    2: ② 0x010F          —— bit8 置位，驱动器进入停止
+  *    3:    SYNC
+  *    4: ③ 0x000F          —— bit8 下降沿，触发速度模式开始运转
+  *    5:    SYNC
+  *
+  *  帧与帧要隔开：CO_TPDOsendRequest() 只是置个标志，真正的发送在下一轮
+  *  CO_TPDO_process()，写太快会把还没上总线的前一帧直接覆盖掉，下降沿就不存在了。
+  *
+  *  帧后必须跟一条 SYNC：从站现在配成【同步接收】（0x1400.02 = 0x01），两次 SYNC
+  *  之间它只锁存最后一帧 —— ①②③ 挤在同一段里只有 ③ 活得下来，中间那拍 halt 从
+  *  没生效，下降沿同样不存在。新固件不靠这个沿，漏了看不出问题；旧固件会直接退回
+  *  「使能了但不发脉冲」，和当初那个故障一模一样。
+  *
+  *  这 6 步期间【控制字归本函数独占】，别的写控制字的地方要让路（pv_start_busy），
+  *  否则它插进来的一帧 0x000F 同样能把 halt 冲掉。
+  * ═══════════════════════════════════════════════════════════════ */
+
+static void pv_start_tick(cia402_slave_t* s, uint8_t idx) {
+    const cia402_slave_config_t* cfg = s_cfgs[idx];
+    bool_t sync_step;
+
+    /* 只有 PV 需要（位置 / 回零模式下 bit8 就是标准 Halt，乱发会引入异常行为），
+     * 且只在本次切入 PV 的启动沿还没走完时才推进 —— 走完就是普通调速了。 */
+    if (s->target_mode != CIA402_MODE_PROFILE_VEL) return;
+    if (s->pv_step > 5u) return;
+
+    /* 步与步之间必须真的隔开，理由见函数头那两条约束：CO_TPDOsendRequest() 只是
+     * 置个标志，真正的发送在下一轮 CO_TPDO_process()（1ms 中断）里。步子走太快，
+     * 前一帧还没上总线就被后一帧覆盖 —— 最要命的是 ② halt 被 ③ 盖掉，bit8 的
+     * 下降沿压根不存在，轴退回「使能了但不发脉冲」。
+     *
+     * 下面每步末尾设的 s->deadline 本来就是为这件事设的，但一直只设不判；实际靠的
+     * 是那几句 printf 的串口耗时（115200 波特，一行三五毫秒）把步子撑开 —— 碰巧成立，
+     * 主循环一变快就散。这里改成真的等。
+     * pv_step==0 不判：它是这段的第一步，没有「上一帧」要等，而且它得尽快响应
+     * 上层第一次下达的非零指令。 */
+    if (s->pv_step != 0u && now_ms() < s->deadline) return;
+
+    sync_step = ((s->pv_step & 1u) != 0u);   /* 奇数步只补 SYNC，没有帧 */
+
+    if (sync_step) {
+        co_sync_send();
+    } else if (s->pv_step == 0u) {
+        /* 等上层第一次下达非零速度指令。切入 PV 时 0x60FF 已被清 0，
+         * 所以「它非零」就是「上层已经下过速度指令」的判据。
+         * 目标为 0 时绝不能打这个沿 —— 约束 1 说那样无效，而约束 2 说
+         * 每次切入 PV 只有一次机会，浪费掉这个轴就再也起不来了。 */
+        if (*s->target_vel == 0u) return;
+        *s->ctrl = CIA402_CMD_ENABLE_OP;
+        printf("CiA402: node=%u PV 启动 ①：0x000F + 目标速度 %lu pps\r\n",
+               (unsigned)s->node_id, (unsigned long)*s->target_vel);
+    } else if (s->pv_step == 2u) {
+        /* 走②之前上层把目标撤回了（STOP 拍）？那这次沿就别打了 —— 约束 1 说
+         * 目标为 0 时打了无效，而机会只有一次。退回未开始，等下一次非零指令；
+         * 此时 halt 还没发出去，驱动器不知道有这么回事。 */
+        if (*s->target_vel == 0u) { s->pv_step = 0u; return; }
+        *s->ctrl = CIA402_CMD_ENABLE_OP_HALT;
+        printf("CiA402: node=%u PV 启动 ②：0x010F（bit8 置位）\r\n", (unsigned)s->node_id);
+    } else {
+        *s->ctrl = CIA402_CMD_ENABLE_OP;
+        printf("CiA402: node=%u PV 启动 ③：0x000F（bit8 下降沿）\r\n", (unsigned)s->node_id);
+    }
+
+    /* 把这一帧真的推上总线（TPDO 序号由 0x2000/0x2010 基址算出）。
+     * SYNC 拍没有帧要发 —— 下一拍的 SYNC 就是来锁存这一帧的。 */
+    if (!sync_step && s_co != NULL && cfg != NULL) {
+        CO_TPDOsendRequest(&s_co->TPDO[(cfg->od_base_index - 0x2000u) / 0x10u]);
+    }
+    s->pv_step++;
+    s->deadline = now_ms() + CIA402_HALT_GAP_MS;
+}
+
  /* ═══════════════════════════════════════════════════════════════
   *  轨迹推进（RUNNING 状态的固有行为）
   *
@@ -596,6 +722,26 @@ static void fsm_tick(cia402_slave_t* s) {
     /* 绑定该从站的过程数据 OD 变量指针 */
     bind_od_ptrs(s, cfg->od_base_index);
 
+    /* 过程映象的初值必须是「保持使能 + 零目标」，不能是 OD.c 给的开机初值 0。
+     *
+     * 为什么：这两台驱动器收到控制字 0 就掉进 Switch On Disabled，而从那里
+     * 0x000F 唤不回来，只能重走 0x06→0x07→0x0F（见 cia402.h 里 pv_step 的注释，
+     * 同一个坑）。
+     *
+     * 这个 0 会真的上总线：apply_master_pdo_mapping() 末尾的 CO_CANopenInitPDO()
+     * 借 CO_TPDO_init() 把主站每个 TPDO 的 sendRequest 无条件置起
+     * （见 CO_PDO.c:1108），而主站自己已经是 OPERATIONAL、TPDO 在 1ms 中断里发
+     * —— 于是重配 PDO 那一刻，OD 里当时的过程数据就被发了出去。谁在 OP 谁中招。
+     *
+     * 主站每次重启时两台驱动器都还在 OP（主站复位不会让它们掉出 OP），谁先配完
+     * PDO 谁就把当时正在使能的另一台打死 —— 现象就是「随机只有一台不转、
+     * 而且轴是松的（根本没使能）」。
+     *
+     * 堵发送的那一半在 canopen_init.c（重配后清 sendRequest）；这里堵内容：
+     * 把初值摆成安全常驻值，之后不管哪一帧被提前发出去，内容都只是「使能 + 零速」，
+     * 对驱动器无害。0x000F 发给还没使能的轴 = 使能，发给已在 OP 的轴 = 保持使能。 */
+    if (s->ctrl != NULL) *s->ctrl = CIA402_CMD_ENABLE_OP;
+
     /* 心跳消费者由 canopen_init 配置，调用方应保证 canopen_init 已完成 */
     if (s_co != NULL && s_co->HBcons != NULL) {
         s->hb_idx = (uint8_t)CO_HBconsumer_getIdxByNodeId(s_co->HBcons, cfg->node_id);
@@ -617,6 +763,13 @@ void cia402_process(uint8_t idx) {
  uint16_t cia402_get_fault_code(uint8_t idx) {
     if (idx >= CIA402_MAX_SLAVES) return 0;
     return s_slaves[idx].fault_code;
+}
+
+bool_t cia402_pv_ready(uint8_t idx) {
+    if (idx >= CIA402_MAX_SLAVES) return false;
+    /* pv_start_tick 走完 6 步（0~5）就停在 6；中途被上层撤回目标会退回 0，
+     * 那种情况就是「还没走完」，等它重新开始。 */
+    return s_slaves[idx].pv_step > 5u;
 }
 
 bool_t cia402_switch_mode(uint8_t idx, cia402_mode_t mode) {
@@ -662,7 +815,13 @@ void cia402_set_velocity(uint8_t idx, int32_t rpm) {
     cia402_slave_t* s = &s_slaves[idx];
     const cia402_slave_config_t* cfg = s_cfgs[idx];
     uint32_t pps = (uint32_t)((int64_t)rpm * cfg->pulse_per_rev / 60);
-    *s->ctrl = CIA402_CMD_ENABLE_OP;
+
+    /* 启动沿期间控制字归 pv_start_tick 独占：那段时序靠 0x000F→0x010F→0x000F
+     * 三帧的【顺序】成立，这里再插一帧 0x000F 就把中间那拍 halt 冲掉了。
+     * 目标速度照写不误 —— 它本来就要先于沿到位（手册约束 1）；给 0 就是停机指令。 */
+    if (!pv_start_busy(s)) {
+        *s->ctrl = CIA402_CMD_ENABLE_OP;
+    }
     *s->target_vel = pps;
     if (s_co != NULL) {
         uint8_t tpdo_idx = (cfg->od_base_index - 0x2000u) / 0x10u;

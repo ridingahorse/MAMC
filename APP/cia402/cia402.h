@@ -5,7 +5,7 @@
   * 前置条件：通用 CANopen 初始化（等PRE-OP、配心跳、配PDO、发NMT进OP）
   *           已由 canopen_init 模块完成，从站应进入或即将进入 OP。
   *
-  * 流程：等OP → 设模式 → shutdown → switch on → enable op → RUNNING
+  * 流程：等OP → 设模式 → 参数 → shutdown → switch on → enable op → RUNNING
   *
   * 未来扩展 cia502 / cia602 时，照此模板新建文件即可，不影响本文件。
   */
@@ -72,6 +72,23 @@ typedef enum {
  #define CIA402_CMD_ENABLE_OP     0x000FU  /**< Switched on → Operation enabled（电机运转） */
  #define CIA402_CMD_DISABLE_OP    0x0007U  /**< Operation enabled → Switched on（清bit3，停机但保持励磁） */
  
+ /* 控制字 bit8 Halt。旧固件（MS12A/MS10A）在 PV 模式下【必须】看到一次 bit8
+  * 的 1→0 下降沿才会启动速度发生器：只写 0x000F 时驱动器状态字正常、无报错、
+  * 电机保持励磁，但 0x606C 恒为 0 —— 「使能了，但不发脉冲」。
+  * 新固件（MS12B/MS12C）没有这条厂商特殊逻辑，bit8 只做标准 Halt，兼容该时序，
+  * 所以统一走旧固件的启动方式，不做固件区分（官方手册确认无法读出固件版本号）。
+  *
+  * 两条硬约束（手册 4.4）：
+  *   1. 目标速度 0x60FF 必须先写好，再做 bit8 跳变 —— 脉冲早于速度设置无效；
+  *   2. 该脉冲每次切入 PV 模式只执行一次，运行中更新 0x60FF 不需要重复。
+  * 位置模式 / 回零模式下 bit8 就是标准 Halt，【不要】对它用（会引入异常行为）。
+  * 从站配成同步接收（use_sync=true）时，三帧各自还要跟一条 SYNC 才被从站看到 ——
+ * 完整步序、时序、以及「这期间控制字归谁写」都在 cia402.c 的 pv_start_tick()，
+ * 动这里之前先看它。 */
+ #define CIA402_CMD_HALT           0x0100U
+ #define CIA402_CMD_ENABLE_OP_HALT 0x010FU  /**< 使能 + bit8 置位（下降沿的前半拍） */
+ #define CIA402_HALT_GAP_MS          20U    /**< 启动沿每步的间隔（发帧与补 SYNC 同节拍） */
+
  #define CIA402_STS_MASK            0x006FU  /**< 屏蔽厂家位与警告位 */
  #define CIA402_STS_READY_SWITCH    0x0021U  /**< Ready to switch on */
  #define CIA402_STS_SWITCHED_ON     0x0023U  /**< Switched on */
@@ -178,6 +195,13 @@ typedef struct {
    cia402_state_t prev_state;  /**< 上一次状态，用于触发 enter */
    uint8_t  trans_step;        /**< 402 状态转换子步骤（0=写控制字, 1=读状态字） */
 
+   /* PV 启动沿步序（0~5，见 cia402.c 的 pv_start_tick）。
+    * 【不能和 trans_step 合用一个字段】：402 转换走完时它停在 1，而
+    * 「state 已置成 RUNNING、fsm_enter 还没跑」的那一拍会拿这个 1 误判成
+    * 「启动沿正在走」，把 set_velocity 写控制字那次挡掉，放一帧 0 出去、
+    * 驱动器掉进 Switch On Disabled。踩过。 */
+   uint8_t  pv_step;
+
    uint32_t deadline;          /**< 当前阶段【子步骤】（单次 SDO）超时截止时刻 */
    uint32_t state_deadline;    /**< 当前状态【整体】超时截止时刻，进状态时设定一次 */
    uint8_t  retry;             /**< 重试次数（跨状态保留，只在 RUNNING 清零） */
@@ -241,6 +265,16 @@ typedef struct {
 uint16_t cia402_get_fault_code(uint8_t idx);
 
 /**
+  * @brief  PV 启动沿（①/②/③ 那六步）是否已经走完。
+  *         上层第一次下达非零速度之后沿才开始走；走完之前控制字由启动沿序列
+  *         独占（pv_start_busy），期间上层写的目标速度只会被暂存。
+  *         用途：要在速度上做时序实验之前，先用它把这一轮沿消化掉 —— 沿自带
+  *         3 条 SYNC，会提前把同步缓冲区的数据落盘，混在实验里就分不清是谁落的盘。
+  * @retval 非速度模式，或沿还没走完 → false
+  */
+bool_t cia402_pv_ready(uint8_t idx);
+
+/**
   * @brief  请求切换运行模式（速度 ↔ 位置）。
   *         非阻塞，调用后状态机自动完成：停机 → 重配 PDO → 设新模式 → 下发参数 → 重新使能。
   *         只能在 CIA402_RUNNING 状态下调用。
@@ -254,6 +288,8 @@ bool_t cia402_switch_mode(uint8_t idx, cia402_mode_t mode);
 /**
   * @brief  速度模式：设置目标速度并触发 PDO 发送。
   *         内部按 pulse_per_rev 把 rpm 换算成 pps，写控制字(保持OP) + 目标速度，触发 TPDO。
+  *         唯 PV 启动沿那几步例外：那时控制字由启动沿序列独占，只写目标速度
+  *         —— 见 cia402.c 的 pv_start_tick / pv_start_busy。
   * @param  rpm  目标速度（单位：转/分钟）
   * @pre    当前为 CIA402_RUNNING 且模式为 PROFILE_VEL
   */

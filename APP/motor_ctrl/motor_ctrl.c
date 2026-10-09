@@ -1,6 +1,7 @@
 #include "motor_ctrl.h"
 #include "canopen_init.h"   /* co_init_start, co_init_process, co_init_done */
 #include "cia402.h"         /* cia402_init, cia402_process */
+#include "app_log.h"
 
 #include <stdio.h>
 
@@ -26,7 +27,7 @@ void motor_ctrl_set_config(uint8_t idx, CO_t* co, const cia402_slave_config_t* c
         : cfg->pos_cfg;
     co_init_start(idx, co, cfg->node_id, pdo_cfg);
 
-    printf("motor_ctrl: idx=%u set config, node=%u, mode=%d\r\n", idx, cfg->node_id, initial_mode);
+    LOGI("motor_ctrl: idx=%u set config, node=%u, mode=%d\r\n", idx, cfg->node_id, initial_mode);
 }
 
 void motor_ctrl_process(void)
@@ -42,7 +43,7 @@ void motor_ctrl_process(void)
         if (co_init_done(idx) && !s_cia402_started[idx]) {
             cia402_init(idx, s_co, s_cfgs[idx], s_initial_modes[idx]);
             s_cia402_started[idx] = true;
-            printf("motor_ctrl: idx=%u CiA402 started\r\n", idx);
+            LOGI("motor_ctrl: idx=%u CiA402 started\r\n", idx);
         }
 
         /* 阶段3：推进 402 状态机 */

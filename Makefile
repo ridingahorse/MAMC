@@ -37,10 +37,11 @@ BUILD_DIR = build
 # C sources
 C_SOURCES =  \
 APP/main.c \
+APP/app_log.c \
 APP/cia402/cia402.c \
 APP/canopen_init/canopen_init.c \
 APP/motor_ctrl/motor_ctrl.c \
-APP/trajectory/s_curve.c \
+APP/test/test.c \
 framework/Core/Src/stm32f4xx_it.c \
 framework/Core/Src/stm32f4xx_hal_msp.c \
 framework/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c \

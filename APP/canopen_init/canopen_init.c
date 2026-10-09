@@ -9,9 +9,15 @@
 #include "301/CO_HBconsumer.h"
 #include "301/CO_SYNC.h"
 #include "main.h"
- 
- #include <stdio.h>
- #include <string.h>
+#include "app_log.h"      /* LOGE/LOGW/LOGI/LOGD */
+
+#include <stdio.h>
+#include <string.h>
+
+/* ── PDO 参数回读开关 ──
+ * 读回驱动器自己的 RPDO/TPDO 参数并打印，纯诊断、不参与流程。定位问题时置 1，
+ * 平时置 0：整段（连同探针表）被编译掉，既不占 flash 也不占串口时间。 */
+#define CO_INIT_PDO_READBACK 0
  
  /* ═══════════════════════════════════════════════════════════════
   *  私有全局
@@ -68,7 +74,7 @@ static void apply_master_pdo_mapping(const co_pdo_config_t* cfg)
         /* 通过 OD_find 找主站映射条目（0x1600 / 0x1A00） */
         OD_entry_t* master_map = OD_find(OD, m->index);
         if (master_map == NULL) {
-            printf("CO_INIT: master map 0x%04X NOT FOUND\r\n", m->index);
+            LOGE("CO_INIT: master map 0x%04X NOT FOUND\r\n", m->index);
             continue;
         }
 
@@ -129,7 +135,7 @@ static void apply_master_pdo_mapping(const co_pdo_config_t* cfg)
                                uint32_t value, size_t size)
  {
      if (!co_master_start_write(s->node_id, index, sub, &value, size, CO_INIT_PDO_TIMEOUT_MS)) {
-         printf("CO_INIT: node=%u SDO 发起失败 idx=0x%04X sub=%u: %s\r\n",
+         LOGE("CO_INIT: node=%u SDO start failed idx=0x%04X sub=%u: %s\r\n",
                 (unsigned)s->node_id, (unsigned)index, (unsigned)sub,
                 co_master_start_error_name(co_master_get_start_error()));
          return PDO_FAULT;
@@ -162,6 +168,8 @@ typedef struct {
     const char* name;
 } pdo_probe_t;
 
+#if CO_INIT_PDO_READBACK
+
 static const pdo_probe_t s_pdo_probe[] = {
     { 0x1400, 1, "RPDO1 COB-ID"       },
     { 0x1400, 2, "RPDO1 transmission" },
@@ -169,10 +177,6 @@ static const pdo_probe_t s_pdo_probe[] = {
     { 0x1600, 1, "RPDO1 map1"         },
     { 0x1600, 2, "RPDO1 map2"         },
     { 0x1600, 3, "RPDO1 map3"         },
-    { 0x1401, 1, "RPDO2 COB-ID"       },
-    { 0x1601, 0, "RPDO2 map count"    },
-    { 0x1601, 1, "RPDO2 map1"         },
-    { 0x1601, 2, "RPDO2 map2"         },
     { 0x1800, 1, "TPDO1 COB-ID"       },
     { 0x1800, 2, "TPDO1 transmission" },
     { 0x1800, 5, "TPDO1 event timer"  },
@@ -188,10 +192,6 @@ static pdo_result_t
 pdo_probe_tick(co_init_slave_t* s) {
     co_master_status_t st = { CO_MASTER_OK, 0 };
     uint8_t i = s->sub_step;   /* 下一个要读的表项；刚读回来的是 i-1 */
-
-    if (i == 0U) {
-        printf("CO_INIT: node=%u ---- PDO parameter readback ----\r\n", (unsigned)s->node_id);
-    }
 
     switch (co_master_step_gate(s->node_id, s->deadline, &st)) {
     case CO_SDO_STEP_WAIT:
@@ -214,9 +214,9 @@ pdo_probe_tick(co_init_slave_t* s) {
                 v = t;
             }
             const pdo_probe_t* p = &s_pdo_probe[i - 1U];
-            printf("CO_INIT: node=%u   0x%04X.%02X %-18s = 0x%08lX (%u byte)\r\n",
-                   (unsigned)s->node_id, (unsigned)p->index, (unsigned)p->sub, p->name,
-                   (unsigned long)v, (unsigned)len);
+            LOGD("CO_INIT: node=%u   0x%04X.%02X %-18s = 0x%08lX (%u byte)\r\n",
+                 (unsigned)s->node_id, (unsigned)p->index, (unsigned)p->sub, p->name,
+                 (unsigned long)v, (unsigned)len);
         }
         break;
 
@@ -225,8 +225,8 @@ pdo_probe_tick(co_init_slave_t* s) {
          * "驱动器不开放这个子索引"正是我们要的信息。 */
         if (i > 0U) {
             const pdo_probe_t* p = &s_pdo_probe[i - 1U];
-            printf("CO_INIT: node=%u   0x%04X.%02X %-18s = (read failed)\r\n",
-                   (unsigned)s->node_id, (unsigned)p->index, (unsigned)p->sub, p->name);
+            LOGD("CO_INIT: node=%u   0x%04X.%02X %-18s = (read failed)\r\n",
+                 (unsigned)s->node_id, (unsigned)p->index, (unsigned)p->sub, p->name);
         }
         break;
 
@@ -239,19 +239,28 @@ pdo_probe_tick(co_init_slave_t* s) {
         if (!co_master_start_read(s->node_id, s_pdo_probe[i].index, s_pdo_probe[i].sub,
                                   CO_INIT_SDO_TIMEOUT_MS)) {
             /* 发起都失败就跳过这一条，别让一次本地错误卡住整轮回读 */
-            printf("CO_INIT: node=%u   0x%04X.%02X read start failed: %s\r\n",
-                   (unsigned)s->node_id, (unsigned)s_pdo_probe[i].index,
-                   (unsigned)s_pdo_probe[i].sub,
-                   co_master_start_error_name(co_master_get_start_error()));
+            LOGD("CO_INIT: node=%u   0x%04X.%02X read start failed: %s\r\n",
+                 (unsigned)s->node_id, (unsigned)s_pdo_probe[i].index,
+                 (unsigned)s_pdo_probe[i].sub,
+                 co_master_start_error_name(co_master_get_start_error()));
         }
         s->sub_step = (uint8_t)(i + 1U);
         s->deadline = now_ms() + CO_INIT_SDO_TIMEOUT_MS + 100;
         return PDO_BUSY;
     }
 
-    printf("CO_INIT: node=%u ---- readback end ----\r\n", (unsigned)s->node_id);
+    LOGD("CO_INIT: node=%u ---- readback end ----\r\n", (unsigned)s->node_id);
     return PDO_DONE;
 }
+
+#else  /* !CO_INIT_PDO_READBACK：整段（含探针表）不编译，直接跳过 */
+
+static pdo_result_t pdo_probe_tick(co_init_slave_t* s) {
+    (void)s;
+    return PDO_DONE;
+}
+
+#endif /* CO_INIT_PDO_READBACK */
 
 static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
      const co_pdo_config_t* cfg = s->pdo_cfg;
@@ -395,9 +404,18 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
          break;
  
      case CO_INIT_CFG_HEARTBEAT:
+         /* 只摆好状态，SDO 由 fsm_tick 经闸门统一发起 */
+         s->deadline = now_ms() + CO_INIT_SDO_TIMEOUT_MS + 100;
+         break;
+
      case CO_INIT_PROBE_PDO:
          /* 只摆好状态，SDO 由 fsm_tick 经闸门统一发起 */
          s->deadline = now_ms() + CO_INIT_SDO_TIMEOUT_MS + 100;
+#if CO_INIT_PDO_READBACK
+         /* 表头放这里（进状态时打一次），不放 pdo_probe_tick 里 ——
+          * 那个函数每次闸门没松开就返回，表头会跟着重复刷屏。 */
+         LOGD("CO_INIT: node=%u ---- PDO parameter readback ----\r\n", (unsigned)s->node_id);
+#endif
          break;
 
      case CO_INIT_CFG_PDO: {
@@ -412,8 +430,8 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
                 OD_set_u8(OD_ENTRY_H1019, 0, 0u, false);
                 OD_set_u32(OD_ENTRY_H1006, 0, cfg->sync_period_us, false);
                 s_sync_producer_configured = true;
-                printf("CO_INIT: SYNC producer enabled, period=%lu us\r\n",
-                       (unsigned long)cfg->sync_period_us);
+                LOGD("CO_INIT: SYNC producer enabled, period=%lu us\r\n",
+                     (unsigned long)cfg->sync_period_us);
             }
         }
          /* 第一步（禁用第一个通道的 COB-ID）由 pdo_cfg_tick 的
@@ -435,14 +453,14 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
  
      case CO_INIT_DONE:
          s->retry = 0;   /* 这次真的成了，重试计数归零 */
-         printf("CO_INIT: node=%u 进入 OP，通用初始化完成\r\n", s->node_id);
+         LOGI("CO_INIT: node=%u entered OP, generic init done\r\n", s->node_id);
          break;
 
      case CO_INIT_FAULT:
          /* 先歇一会儿再重来，别一进故障就立刻重试 —— 从站刚掉线时
           * 总线上可能还在收尾，马上重试只会再失败一次。 */
          s->deadline = now_ms() + CO_INIT_FAULT_RETRY_MS;
-         printf("CO_INIT: node=%u 故障 code=0x%04X（已重试 %u/%u 次）\r\n",
+         LOGE("CO_INIT: node=%u fault code=0x%04X (retried %u/%u)\r\n",
                 s->node_id, s->fault_code, (unsigned)s->retry, (unsigned)CO_INIT_FAULT_RETRY_MAX);
          break;
      }
@@ -497,8 +515,8 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
              * 正解：把从站请回 PRE-OP，从 PROBE_PDO 起完整重来一遍。从站留在 OP
              * 的代价就是「这次开机用的是上次留下的东西」，而同步接收必须每次都由
              * 主站亲手写进去才作数。CO_INIT_PDO_RECONFIG 就是干这个的现成状态。 */
-            printf("CO_INIT: node=%u already in OP, 请回 PRE-OP 重配 PDO\r\n",
-                   (unsigned)s->node_id);
+            LOGI("CO_INIT: node=%u already in OP, re-enter PRE-OP to reconfigure PDO\r\n",
+                 (unsigned)s->node_id);
             s->state = CO_INIT_PDO_RECONFIG;
         } else if (now_ms() >= s->deadline) {
             s->fault = true;
@@ -519,7 +537,7 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
          case CO_SDO_STEP_DONE: {
              uint32_t vendor_id;
              if (co_master_get_u32(&vendor_id)) {
-                 printf("CO_INIT: node=%u vendor ID = 0x%08lX\r\n",
+                 LOGI("CO_INIT: node=%u vendor ID = 0x%08lX\r\n",
                         (unsigned)s->node_id, (unsigned long)vendor_id);
                  s->state = CO_INIT_READ_ERROR_REG;
              } else {
@@ -532,7 +550,7 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
          case CO_SDO_STEP_NEXT:
          default:
              if (!co_master_start_read(s->node_id, 0x1018, 1, CO_INIT_SDO_TIMEOUT_MS)) {
-                 printf("CO_INIT: node=%u 读 0x1018 发起失败: %s\r\n",
+                 LOGE("CO_INIT: node=%u read 0x1018 start failed: %s\r\n",
                         (unsigned)s->node_id,
                         co_master_start_error_name(co_master_get_start_error()));
                  s->fault = true; s->fault_code = CO_INIT_ERR_IDENTITY_SDO;
@@ -557,7 +575,7 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
                 if (u8val != 0) {
                     /* 错误寄存器非零只警告，不终止。很多从站上电瞬间会置位，
                      * 实际不影响后续配置与运行。 */
-                    printf("CO_INIT: node=%u 错误寄存器=0x%02X（警告，继续）\r\n", s->node_id, u8val);
+                    LOGW("CO_INIT: node=%u error register=0x%02X (warn, continue)\r\n", s->node_id, u8val);
                 }
                 s->state = CO_INIT_CFG_HEARTBEAT;
             } else {
@@ -568,7 +586,7 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
          case CO_SDO_STEP_NEXT:
          default:
              if (!co_master_start_read(s->node_id, 0x1001, 0, CO_INIT_SDO_TIMEOUT_MS)) {
-                 printf("CO_INIT: node=%u 读 0x1001 发起失败: %s\r\n",
+                 LOGE("CO_INIT: node=%u read 0x1001 start failed: %s\r\n",
                         (unsigned)s->node_id,
                         co_master_start_error_name(co_master_get_start_error()));
                  s->fault = true; s->fault_code = CO_INIT_ERR_ERRREG_SDO;
@@ -595,7 +613,7 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
          default: {
              uint16_t hb_ms = CO_INIT_HB_PRODUCER_MS;
              if (!co_master_start_write(s->node_id, 0x1017, 0, &hb_ms, 2, CO_INIT_SDO_TIMEOUT_MS)) {
-                 printf("CO_INIT: node=%u 写 0x1017 发起失败: %s\r\n",
+                 LOGE("CO_INIT: node=%u write 0x1017 start failed: %s\r\n",
                         (unsigned)s->node_id,
                         co_master_start_error_name(co_master_get_start_error()));
                  s->fault = true; s->fault_code = CO_INIT_ERR_HB_SDO;
@@ -663,7 +681,7 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
              s->fault = false;
              s->fault_code = CO_INIT_ERR_NONE;
              s->online = false;      /* 重新等心跳，别拿上一次的上线状态当数 */
-             printf("CO_INIT: node=%u 重试第 %u 次\r\n", (unsigned)s->node_id, (unsigned)s->retry);
+             LOGW("CO_INIT: node=%u retry #%u\r\n", (unsigned)s->node_id, (unsigned)s->retry);
              s->state = CO_INIT_WAIT_PREOP;
          }
          break;
@@ -701,7 +719,7 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
     if (s_co != NULL && s_co->HBcons != NULL) {
         uint8_t hb_sub = s_hb_next_sub;
         if (hb_sub >= s_co->HBcons->numberOfMonitoredNodes) {
-            printf("CO_INIT: ERROR heartbeat table full for node=%u\r\n", nodeId);
+            LOGE("CO_INIT: heartbeat table full for node=%u\r\n", nodeId);
             s->hb_idx = 0xFF;
         } else {
             uint32_t entry = ((uint32_t)nodeId << 16) | CO_INIT_HB_TIMEOUT_MS;
@@ -714,14 +732,14 @@ static pdo_result_t pdo_cfg_tick(co_init_slave_t* s) {
                 CO_HBconsumer_initCallbackRemoteReset(s_co->HBcons, s->hb_idx, NULL, on_bootup);
             } else {
                 s->hb_idx = 0xFF;
-                printf("CO_INIT: ERROR heartbeat consumer not found for node=%u\r\n", nodeId);
+                LOGE("CO_INIT: heartbeat consumer not found for node=%u\r\n", nodeId);
             }
         }
     } else {
         s->hb_idx = 0xFF;
     }
 
-    printf("CO_INIT: start idx=%u node=%u\r\n", idx, nodeId);
+    LOGI("CO_INIT: start idx=%u node=%u\r\n", idx, nodeId);
 }
 
 void co_init_process(uint8_t idx) {
@@ -739,7 +757,7 @@ void co_init_restart(uint8_t idx, const co_pdo_config_t* new_cfg) {
     s->retry = 0;   /* 上层主动要求重来，等于重新给一次重试预算 */
     s->state = CO_INIT_PDO_RECONFIG;
     s->prev_state = (co_init_state_t)-1;
-    printf("CO_INIT: idx=%u restart with new PDO config\r\n", idx);
+    LOGI("CO_INIT: idx=%u restart with new PDO config\r\n", idx);
 }
 
 bool_t co_init_done(uint8_t idx) {

@@ -16,8 +16,8 @@
 #include "OD.h"              /* OD_RAM 变量 */
 #include "301/CO_HBconsumer.h" /* CO_HBconsNode_t, CO_HBconsumer_getIdxByNodeId */
 #include "main.h"         /* HAL_GetTick() */
-#include "s_curve.h"         /* 软件 S 曲线轨迹规划 */
- 
+#include "app_log.h"      /* LOGE/LOGW/LOGI/LOGD */
+
  #include <stdio.h>
  #include <string.h>
  
@@ -78,7 +78,7 @@ static void bind_od_ptrs(cia402_slave_t* s, uint16_t base)
  /** @brief 写 402 控制字 0x6040；成功则推进 deadline，失败返回 false */
  static bool_t sdo_write_ctrl(cia402_slave_t* s, uint16_t cmd) {
      if (!co_master_start_write(s->node_id, 0x6040, 0, &cmd, 2, CIA402_STEP_TIMEOUT_MS)) {
-         printf("CiA402: node=%u 写控制字 0x%04X 发起失败: %s\r\n", (unsigned)s->node_id, (unsigned)cmd,
+         LOGE("CiA402: node=%u write ctrl 0x%04X start failed: %s\r\n", (unsigned)s->node_id, (unsigned)cmd,
                 co_master_start_error_name(co_master_get_start_error()));
          return false;
      }
@@ -89,7 +89,7 @@ static void bind_od_ptrs(cia402_slave_t* s, uint16_t base)
  /** @brief 读 402 状态字 0x6041；成功则推进 deadline，失败返回 false */
  static bool_t sdo_read_status(cia402_slave_t* s) {
      if (!co_master_start_read(s->node_id, 0x6041, 0, CIA402_STEP_TIMEOUT_MS)) {
-         printf("CiA402: node=%u 读状态字 0x6041 发起失败: %s\r\n", (unsigned)s->node_id,
+         LOGE("CiA402: node=%u read status 0x6041 start failed: %s\r\n", (unsigned)s->node_id,
                 co_master_start_error_name(co_master_get_start_error()));
          return false;
      }
@@ -223,11 +223,10 @@ static void bind_od_ptrs(cia402_slave_t* s, uint16_t base)
 
     case CIA402_CFG_PARAMS:
         /* 根据当前模式选参数表，逐个 SDO 下发。
-         * 位置类（PP / CSP）用 pos_params，速度类（PV）用 vel_params。 */
+         * 位置类（PP）用 pos_params，速度类（PV）用 vel_params。 */
         if (s->target_mode == CIA402_MODE_PROFILE_VEL) {
             s->active_params = cfg->vel_params;
-        } else if (s->target_mode == CIA402_MODE_PROFILE_POS ||
-                   s->target_mode == CIA402_MODE_CSP) {
+        } else if (s->target_mode == CIA402_MODE_PROFILE_POS) {
             s->active_params = cfg->pos_params;
         } else {
             s->active_params = NULL;   /* 其它模式没有参数表，直通 RUNNING */
@@ -243,27 +242,21 @@ static void bind_od_ptrs(cia402_slave_t* s, uint16_t base)
  
      case CIA402_RUNNING:
          s->retry = 0;   /* 真的跑起来了，重试预算归零 */
-         printf("CiA402: node=%u init done, RUNNING\r\n", s->node_id);
+         LOGI("CiA402: node=%u init done, RUNNING\r\n", s->node_id);
          /* 进场第一件事：把控制字的【常驻值】摆成 0x000F。它是 RPDO 上的内容，
           * 谁发帧谁就把它带出去 —— 留着初值 0 的话，任何一帧（set_velocity 的
           * 周期重发就会）都让驱动器直接掉出 Operation enabled、状态字回 0x0670
           * （Switch On Disabled），而且 0x000F 唤不回来，得重走 0x06→0x07→0x0F，
-          * 等于两轴一起哑掉、只能断电。这个坑踩过一次，别再把控制字留空。 */
+          * 等于两轴一起哑掉、只能断电。这个坑踩过一次，别再把控制字留空。
+          *
+          * 位置模式下这一句还顺带把 bit4 清掉：0x003F → 0x000F 是一个真实的
+          * 下降沿，下一个目标点才有上升沿可给（bit4 是沿触发，见 cia402.h）。 */
          *s->ctrl = CIA402_CMD_ENABLE_OP;
-         /* CSP 下主机必须持续下发目标点。目标锁到【当前实际位置】，否则会拿上一轮
-          * 的残留目标（切换时被清零成 0）当指令发出去，驱动器会直接朝 0 位飞车。
-          * 这里能安全读 x2004：从站早在重配 PDO 后就回了 OP，TPDO1 一直以 10ms
-          * 上报，等状态机走完 SET_MODE/CFG_PARAMS/shutdown… 早已收到若干帧。 */
-         if (s->target_mode == CIA402_MODE_CSP) {
-             *s->target_pos     = *s->actual_pos;
-             s->scurve_active    = false;
-             s->scurve_last_tick = now_ms();
-         }
          break;
- 
+
      case CIA402_FAULT:
          s->deadline = now_ms() + CIA402_FAULT_RETRY_MS;
-         printf("CiA402: node=%u fault, code=0x%04X（已重试 %u/%u 次）\r\n",
+         LOGE("CiA402: node=%u fault, code=0x%04X (retry %u/%u)\r\n",
                 s->node_id, s->fault_code, (unsigned)s->retry, (unsigned)CIA402_FAULT_RETRY_MAX);
          break;
      }
@@ -273,7 +266,6 @@ static void bind_od_ptrs(cia402_slave_t* s, uint16_t base)
  *  大状态机：tick 函数（每周期执行）
  * ═══════════════════════════════════════════════════════════════ */
 
-static void trajectory_tick(cia402_slave_t* s);
 static void pv_start_tick(cia402_slave_t* s, uint8_t idx);
 
 static void fsm_tick(cia402_slave_t* s) {
@@ -363,7 +355,7 @@ static void fsm_tick(cia402_slave_t* s) {
              if (s->trans_step == 0) {
                  uint8_t mode = (uint8_t)s->target_mode;
                  if (!co_master_start_write(s->node_id, 0x6060, 0, &mode, 1, CIA402_SDO_TIMEOUT_MS)) {
-                     printf("CiA402: node=%u 写模式 0x6060 发起失败: %s\r\n", (unsigned)s->node_id,
+                     LOGE("CiA402: node=%u write mode 0x6060 start failed: %s\r\n", (unsigned)s->node_id,
                             co_master_start_error_name(co_master_get_start_error()));
                      s->fault = true; s->fault_code = CIA402_ERR_MODE_SDO;
                      s->state = CIA402_FAULT;
@@ -371,7 +363,7 @@ static void fsm_tick(cia402_slave_t* s) {
                  }
              } else {
                  if (!co_master_start_read(s->node_id, 0x6061, 0, CIA402_SDO_TIMEOUT_MS)) {
-                     printf("CiA402: node=%u 读模式 0x6061 发起失败: %s\r\n", (unsigned)s->node_id,
+                     LOGE("CiA402: node=%u read mode 0x6061 start failed: %s\r\n", (unsigned)s->node_id,
                             co_master_start_error_name(co_master_get_start_error()));
                      s->fault = true; s->fault_code = CIA402_ERR_MODE_SDO;
                      s->state = CIA402_FAULT;
@@ -468,7 +460,7 @@ static void fsm_tick(cia402_slave_t* s) {
                 break;
             }
             if (!co_master_start_write(s->node_id, obj_idx, 0, &val, 4, CIA402_SDO_TIMEOUT_MS)) {
-                printf("CiA402: node=%u 写参数 0x%04X 发起失败: %s\r\n", (unsigned)s->node_id,
+                LOGE("CiA402: node=%u write param 0x%04X start failed: %s\r\n", (unsigned)s->node_id,
                        (unsigned)obj_idx, co_master_start_error_name(co_master_get_start_error()));
                 s->fault = true; s->fault_code = CIA402_ERR_MODE_SDO;
                 s->state = CIA402_FAULT;
@@ -512,14 +504,13 @@ static void fsm_tick(cia402_slave_t* s) {
           * 必须退回 WAIT_OP 重走一遍使能流程，否则就是「总线上一切正常、
           * 串口也安静，但轴不动」。canopen_init 那边对应的是故障重试。 */
          if (!slave_is_operational(s)) {
-             printf("CiA402: node=%u 掉线，退回等待 OP\r\n", (unsigned)s->node_id);
+             LOGW("CiA402: node=%u offline, back to WAIT_OP\r\n", (unsigned)s->node_id);
              s->fault = false;
              s->fault_code = CIA402_ERR_NONE;
              s->state = CIA402_WAIT_OP;
              break;
          }
-         pv_start_tick(s, idx);   /* PV：补一次 bit8 下降沿启动触发（PP/CSP 不走） */
-         trajectory_tick(s);
+         pv_start_tick(s, idx);   /* PV：补一次 bit8 下降沿启动触发（位置模式不走） */
          break;
 
      case CIA402_FAULT:
@@ -531,7 +522,7 @@ static void fsm_tick(cia402_slave_t* s) {
              s->fault = false;
              s->fault_code = CIA402_ERR_NONE;
              s->trans_step = 0;
-             printf("CiA402: node=%u 重试第 %u 次\r\n", (unsigned)s->node_id, (unsigned)s->retry);
+             LOGW("CiA402: node=%u retry #%u\r\n", (unsigned)s->node_id, (unsigned)s->retry);
              s->state = CIA402_WAIT_OP;
          }
          break;
@@ -618,9 +609,7 @@ static void pv_start_tick(cia402_slave_t* s, uint8_t idx) {
      * 前一帧还没上总线就被后一帧覆盖 —— 最要命的是 ② halt 被 ③ 盖掉，bit8 的
      * 下降沿压根不存在，轴退回「使能了但不发脉冲」。
      *
-     * 下面每步末尾设的 s->deadline 本来就是为这件事设的，但一直只设不判；实际靠的
-     * 是那几句 printf 的串口耗时（115200 波特，一行三五毫秒）把步子撑开 —— 碰巧成立，
-     * 主循环一变快就散。这里改成真的等。
+     * 每步末尾设的 s->deadline 就是为此设的，下面真的去等它，不靠打印耗时把步子撑开。
      * pv_step==0 不判：它是这段的第一步，没有「上一帧」要等，而且它得尽快响应
      * 上层第一次下达的非零指令。 */
     if (s->pv_step != 0u && now_ms() < s->deadline) return;
@@ -636,18 +625,18 @@ static void pv_start_tick(cia402_slave_t* s, uint8_t idx) {
          * 每次切入 PV 只有一次机会，浪费掉这个轴就再也起不来了。 */
         if (*s->target_vel == 0u) return;
         *s->ctrl = CIA402_CMD_ENABLE_OP;
-        printf("CiA402: node=%u PV 启动 ①：0x000F + 目标速度 %lu pps\r\n",
-               (unsigned)s->node_id, (unsigned long)*s->target_vel);
+        LOGD("CiA402: node=%u PV ignite 1: 0x000F + target %lu pps\r\n",
+             (unsigned)s->node_id, (unsigned long)*s->target_vel);
     } else if (s->pv_step == 2u) {
         /* 走②之前上层把目标撤回了（STOP 拍）？那这次沿就别打了 —— 约束 1 说
          * 目标为 0 时打了无效，而机会只有一次。退回未开始，等下一次非零指令；
          * 此时 halt 还没发出去，驱动器不知道有这么回事。 */
         if (*s->target_vel == 0u) { s->pv_step = 0u; return; }
         *s->ctrl = CIA402_CMD_ENABLE_OP_HALT;
-        printf("CiA402: node=%u PV 启动 ②：0x010F（bit8 置位）\r\n", (unsigned)s->node_id);
+        LOGD("CiA402: node=%u PV ignite 2: 0x010F (bit8 set)\r\n", (unsigned)s->node_id);
     } else {
         *s->ctrl = CIA402_CMD_ENABLE_OP;
-        printf("CiA402: node=%u PV 启动 ③：0x000F（bit8 下降沿）\r\n", (unsigned)s->node_id);
+        LOGD("CiA402: node=%u PV ignite 3: 0x000F (bit8 falling edge)\r\n", (unsigned)s->node_id);
     }
 
     /* 把这一帧真的推上总线（TPDO 序号由 0x2000/0x2010 基址算出）。
@@ -657,51 +646,6 @@ static void pv_start_tick(cia402_slave_t* s, uint8_t idx) {
     }
     s->pv_step++;
     s->deadline = now_ms() + CIA402_HALT_GAP_MS;
-}
-
- /* ═══════════════════════════════════════════════════════════════
-  *  轨迹推进（RUNNING 状态的固有行为）
-  *
-  *  只在 CSP 模式下工作 —— 这是"主机生成轨迹"的模式，主机必须【持续】
-  *  每周期下发一个目标点，驱动器只负责跟随。
-  *     轨迹在跑   → 下发 S 曲线算出来的中间点
-  *     轨迹跑完了 → 继续按同样周期重发最后一个点（保持位置）
-  *  不能因为没在跑轨迹就停发：CSP 下长时间收不到 RPDO 驱动器会报跟随/超时。
-  *
-  *  PP / PV 模式下本函数直接返回，由驱动器自己规划。
-  * ═══════════════════════════════════════════════════════════════ */
-
- static void trajectory_tick(cia402_slave_t* s) {
-    if (s->target_mode != CIA402_MODE_CSP) return;
-    uint8_t idx = (uint8_t)(s - s_slaves);
-    const cia402_slave_config_t* cfg = s_cfgs[idx];
-    if (cfg == NULL) return;
-
-    /* dt_ms 配成 0 会让下面这个门槛永远为假，变成每轮主循环都发一帧，这里兜一下 */
-    uint32_t period = (cfg->traj.dt_ms != 0u) ? cfg->traj.dt_ms : 10u;
-
-    uint32_t elapsed = now_ms() - s->scurve_last_tick;
-    if (elapsed < period) return;
-    s->scurve_last_tick = now_ms();
-
-    int32_t p;
-    if (s->scurve_active) {
-        /* 把【实际】经过的时间喂给规划器，主循环抖动不会累积成轨迹变形 */
-        p = s_curve_step(&s->scurve, elapsed);
-        if (s_curve_done(&s->scurve)) {
-            s->scurve_active = false;
-        }
-    } else {
-        p = (int32_t)(*s->target_pos);   /* 保持最后的点 */
-    }
-
-    *s->ctrl       = CIA402_CMD_ENABLE_OP;  /* CSP 不用 bit4/5/6 */
-    *s->target_pos = (uint32_t)p;
-    if (s_co != NULL) {
-        /* TPDO 通道按 od_base_index 推导：0x2000→TPDO[0], 0x2010→TPDO[1] */
-        uint8_t tpdo_idx = (cfg->od_base_index - 0x2000u) / 0x10u;
-        CO_TPDOsendRequest(&s_co->TPDO[tpdo_idx]);
-    }
 }
 
  /* ═══════════════════════════════════════════════════════════════
@@ -747,7 +691,7 @@ static void pv_start_tick(cia402_slave_t* s, uint8_t idx) {
         s->hb_idx = (uint8_t)CO_HBconsumer_getIdxByNodeId(s_co->HBcons, cfg->node_id);
     }
 
-    printf("CiA402: init idx=%u node=%u mode=%d\r\n", idx, cfg->node_id, mode);
+    LOGI("CiA402: init idx=%u node=%u mode=%d\r\n", idx, cfg->node_id, mode);
 }
 
 void cia402_process(uint8_t idx) {
@@ -777,7 +721,7 @@ bool_t cia402_switch_mode(uint8_t idx, cia402_mode_t mode) {
     cia402_slave_t* s = &s_slaves[idx];
     const cia402_slave_config_t* cfg = s_cfgs[idx];
     if (s->state != CIA402_RUNNING) {
-        printf("CiA402: idx=%u switch_mode rejected, not RUNNING (state=%d)\r\n", idx, s->state);
+        LOGW("CiA402: idx=%u switch_mode rejected, not RUNNING (state=%d)\r\n", idx, s->state);
         return false;
     }
     /* 先通过 PDO 发一次：控制字=停机 + 目标=0，让从站在重配前就停住且目标清零 */
@@ -791,22 +735,28 @@ bool_t cia402_switch_mode(uint8_t idx, cia402_mode_t mode) {
         uint8_t tpdo_idx = (cfg->od_base_index - 0x2000u) / 0x10u;
         CO_TPDOsendRequest(&s_co->TPDO[tpdo_idx]);
     }
+    /* CSP 未实现：必须在这里挡住，不能让它落到 PROFILE_POS 的分支上去。
+     * 那样调用方以为拿到了"主机逐点下发"，实际跑的是驱动器的轮廓位置
+     * （bit4 沿触发、只认最终目标）—— 静默降级比直接报错难查得多。 */
+    if (mode == CIA402_MODE_CSP) {
+        LOGW("CiA402: idx=%u switch_mode rejected, CSP not implemented\r\n", idx);
+        return false;
+    }
+
     const co_pdo_config_t* pdo_cfg = NULL;
     switch (mode) {
     case CIA402_MODE_PROFILE_VEL: pdo_cfg = cfg->vel_cfg; break;
-    case CIA402_MODE_PROFILE_POS:
-    case CIA402_MODE_CSP:         pdo_cfg = cfg->pos_cfg; break;
+    case CIA402_MODE_PROFILE_POS: pdo_cfg = cfg->pos_cfg; break;
     default:                      break;
     }
     if (pdo_cfg == NULL) {
-        printf("CiA402: idx=%u switch_mode rejected, no PDO config for mode=%d\r\n", idx, mode);
+        LOGW("CiA402: idx=%u switch_mode rejected, no PDO config for mode=%d\r\n", idx, mode);
         return false;
     }
-    s->scurve_active = false;
     s->pending_mode = mode;
     s->pending_pdo_cfg = pdo_cfg;
     s->state = CIA402_DISABLE_OP;
-    printf("CiA402: idx=%u mode switch requested, target mode=%d\r\n", idx, mode);
+    LOGI("CiA402: idx=%u mode switch requested, target mode=%d\r\n", idx, mode);
     return true;
 }
 
@@ -834,24 +784,10 @@ void cia402_set_position_abs(uint8_t idx, int32_t position) {
     cia402_slave_t* s = &s_slaves[idx];
     const cia402_slave_config_t* cfg = s_cfgs[idx];
 
-    const cia402_traj_config_t* t = (cfg != NULL) ? &cfg->traj : NULL;
-
-    if (s->target_mode == CIA402_MODE_CSP
-        && t != NULL
-        && t->curve_type == CIA402_TRAJ_S_CURVE
-        && t->v_max != 0u && t->a_max != 0u && t->jerk != 0u) {
-
-        s_curve_init(&s->scurve, position, (int32_t)(*s->actual_pos),
-                     t->v_max, t->a_max, t->jerk, t->dt_ms);
-        s->scurve_active    = true;
-        s->scurve_last_tick = now_ms();
-        return;
-    }
-
-    /* PP（或 CSP 但没配曲线）：把最终目标交给驱动器，一次写完 */
-    *s->ctrl = (s->target_mode == CIA402_MODE_CSP)
-             ? CIA402_CMD_ENABLE_OP    /* CSP 不用 bit4/5/6 */
-             : CIA402_CMD_POS_ABS;     /* PP：bit4 上升沿触发新目标 */
+    /* 把最终目标交给驱动器，一次写完。控制字 0x003F = 保持 OP + bit4 新目标点
+     * （上升沿触发）+ bit5 立即改变 + bit6=0 绝对位置。bit4 是【沿】触发的，
+     * 所以同一个目标只能写一次；重发同样的值不会再触发，这是有意的。 */
+    *s->ctrl = CIA402_CMD_POS_ABS;
     *s->target_pos = (uint32_t)position;
     if (s_co != NULL) {
         uint8_t tpdo_idx = (cfg->od_base_index - 0x2000u) / 0x10u;
@@ -859,22 +795,11 @@ void cia402_set_position_abs(uint8_t idx, int32_t position) {
     }
 }
 
-void cia402_set_position_rel(uint8_t idx, int32_t delta) {
-    if (idx >= CIA402_MAX_SLAVES) return;
-    cia402_slave_t* s = &s_slaves[idx];
-    int32_t cur = (int32_t)(*s->actual_pos);
-    cia402_set_position_abs(idx, cur + delta);
-}
-
 bool_t cia402_position_reached(uint8_t idx) {
     if (idx >= CIA402_MAX_SLAVES) return false;
     cia402_slave_t* s = &s_slaves[idx];
 
-    if (s->target_mode != CIA402_MODE_PROFILE_POS
-        && s->target_mode != CIA402_MODE_CSP) {
-        return false;
-    }
-    if (s->scurve_active) {
+    if (s->target_mode != CIA402_MODE_PROFILE_POS) {
         return false;
     }
     return ((*s->status & CIA402_STS_TARGET_REACHED) ? true : false);

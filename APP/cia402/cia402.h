@@ -14,7 +14,6 @@
 
 #include "CANopen.h"
 #include "canopen_init.h"
-#include "../trajectory/s_curve.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -110,17 +109,21 @@ typedef enum {
  *        主机只写一次最终目标（0x607A / 0x60FF），驱动器按自己的
  *        0x6081/0x6083/0x6084 规划。主机插值没有意义 —— 驱动器不接收
  *        中间点（PP 的新设定点靠控制字 bit4 上升沿触发），硬发只会被丢弃。
+ *        本工程当前只用这两种。
  *
  *   CSP(8)                           轨迹归【主机】：
  *        主机每周期下发一个中间点（0x607A），驱动器只负责跟随。
  *        软件 S 曲线只在这种模式下使用。
+ *        ⚠ 目前【未实现】：枚举值保留是给位置同步留的接口位，
+ *          cia402_switch_mode() 会明确拒绝它，不会静默退化成 PP。
+ *          要接上，需要 1) 补回 s_curve.c，2) 恢复 cia402 里的逐点下发路径。
  */
  typedef enum {
      CIA402_MODE_PROFILE_POS = 1,   /**< 轮廓位置：驱动器规划，主机只发最终目标 */
      CIA402_MODE_PROFILE_VEL = 3,   /**< 轮廓速度：驱动器规划 */
-     CIA402_MODE_TORQUE      = 4,   /**< 转矩 */
-     CIA402_MODE_HOMING      = 6,   /**< 回零 */
-     CIA402_MODE_CSP         = 8,   /**< 循环同步位置：主机逐点下发，软件轨迹用这个 */
+     CIA402_MODE_TORQUE      = 4,   /**< 转矩（未实现） */
+     CIA402_MODE_HOMING      = 6,   /**< 回零（未实现） */
+     CIA402_MODE_CSP         = 8,   /**< 循环同步位置：主机逐点下发（未实现） */
  } cia402_mode_t;
  
  /* ═══════════════════════════════════════════════════════════════
@@ -146,15 +149,19 @@ typedef enum {
 /* 软件轨迹的算法选择。【只在 CSP 模式下生效】——
  * 这一个结构描述的是"主机拿到轨迹生成权之后怎么画曲线"，
  * 不参与"要不要主机生成轨迹"的判断（那个由 target_mode 决定）。
- * PP / PV 模式下本结构整体被忽略，配了也不会被调用。 */
+ * PP / PV 模式下本结构整体被忽略，配了也不会被调用。
+ *
+ * ⚠ CSP 目前未实现（见 cia402_mode_t），所以本结构连同
+ *   cia402_slave_config_t.traj 现在都是【预留的配置面】：写进去不报错，
+ *   也没有任何代码读它。留着是为了让"接上 CSP"只需要补实现、不用改配置。 */
 typedef enum {
     CIA402_TRAJ_NONE    = 0,   /**< 不做软件曲线，目标直接下发 */
     CIA402_TRAJ_T_CURVE = 1,   /**< 梯形曲线（未实现，等同 NONE） */
-    CIA402_TRAJ_S_CURVE = 2,   /**< 7段S曲线（软件插值） */
+    CIA402_TRAJ_S_CURVE = 2,   /**< 7段S曲线（软件插值，接口见 trajectory/s_curve.h，实现未提供） */
 } cia402_traj_type_t;
 
 typedef struct {
-    cia402_traj_type_t curve_type;  /**< 曲线类型（仅 CSP 模式下有意义） */
+    cia402_traj_type_t curve_type;  /**< 曲线类型（仅 CSP 模式下有意义，当前无人读） */
     uint32_t v_max;                 /**< 最大速度（pps） */
     uint32_t a_max;                 /**< 最大加速度（pps²） */
     uint32_t jerk;                  /**< 加加速度（pps³） */
@@ -180,7 +187,7 @@ typedef struct {
     const co_pdo_config_t* pos_cfg;  /**< 位置模式 PDO 配置 */
     cia402_mode_params_t* vel_params;  /**< 速度模式参数（NULL=不配置） */
     cia402_mode_params_t* pos_params;  /**< 位置模式参数（NULL=不配置） */
-    cia402_traj_config_t traj;   /**< 轨迹规划配置（位置模式用） */
+    cia402_traj_config_t traj;   /**< 软件轨迹配置：CSP 用，当前未实现、无人读取 */
 } cia402_slave_config_t;
 
  /* ═══════════════════════════════════════════════════════════════
@@ -218,11 +225,6 @@ typedef struct {
    /* 参数配置子状态 */
    uint8_t  param_step;        /**< 参数配置当前步骤 */
    const cia402_mode_params_t* active_params;  /**< 当前模式参数指针 */
-
-   /* 轨迹规划运行时状态（位置模式 + S 曲线时使用） */
-   s_curve_t scurve;            /**< S 曲线规划器实例 */
-   bool_t    scurve_active;     /**< 是否正在规划中 */
-   uint32_t  scurve_last_tick;  /**< 上次轨迹步进时刻（ms） */
 
    /* 过程数据 OD 变量指针 —— 每个从站指向自己的 OD_RAM 区域，
     * 避免多从站共用 OD_RAM.x2000 等变量时互相覆盖。
@@ -280,8 +282,9 @@ bool_t cia402_pv_ready(uint8_t idx);
   *         只能在 CIA402_RUNNING 状态下调用。
   *         模式参数从 cia402_init 绑定的 cfg 中取（vel_params / pos_params），
   *         上层在调用前可直接修改 params 结构体内容。
-  * @param  mode  目标模式（CIA402_MODE_PROFILE_VEL / CIA402_MODE_PROFILE_POS）
-  * @return true=请求已接受, false=当前状态不允许切换
+  * @param  mode  目标模式，只接受 CIA402_MODE_PROFILE_VEL / CIA402_MODE_PROFILE_POS；
+  *               CSP 未实现，会被明确拒绝（不会静默退化成轮廓位置）
+  * @return true=请求已接受, false=当前状态不允许切换或模式不支持
   */
 bool_t cia402_switch_mode(uint8_t idx, cia402_mode_t mode);
 
@@ -297,29 +300,18 @@ void cia402_set_velocity(uint8_t idx, int32_t rpm);
 
 /**
   * @brief  位置模式：设置绝对目标位置。
-  *         语义固定为"最终要走到 position"，内部按当前运行模式自动选择下发方式：
-  *           PROFILE_POS → 写一次 0x607A，由驱动器规划（主机不插值）
-  *           CSP         → 启动软件 S 曲线，由 cia402_process 周期逐点下发
-  *         调用方不需要知道当前是哪种模式。
-  * @param  position  目标位置（单位：脉冲数）
-  * @pre    当前为 CIA402_RUNNING 且模式为 PROFILE_POS 或 CSP
+  *         写一次 0x607A + 控制字 0x003F（bit4 上升沿触发新目标点），
+  *         之后由驱动器自己规划到该位置，主机不再插值。
+  *         ⚠ 控制字 bit4 是【上升沿】触发：同一个目标只写一次。连续重发同样的
+  *           0x003F 不会重新触发；要下发新目标，中间必须先回到 bit4=0 的状态
+  *           （比如模式切换时 fsm 会把控制字重写成 0x000F）。
+  * @param  position  目标位置（单位：脉冲数，绝对）
+  * @pre    当前为 CIA402_RUNNING 且模式为 PROFILE_POS
   */
 void cia402_set_position_abs(uint8_t idx, int32_t position);
 
 /**
-  * @brief  位置模式：设置相对目标位置（在当前实际位置基础上偏移）并触发 PDO 发送。
-  * @param  delta  相对偏移量（单位：脉冲数，正=正转，负=反转）
-  * @pre    当前为 CIA402_RUNNING 且模式为 PROFILE_POS
-  */
-void cia402_set_position_rel(uint8_t idx, int32_t delta);
-
-/**
-  * @brief  位置是否已到达
-  * @note   要求【两个条件同时满足】：
-  *           1. 软件轨迹已跑完（CSP 模式下，中间点会让 bit10 反复抖动）
-  *           2. 从站状态字 bit10（Target reached）为 1
-  *         只判软件规划完成会误报 —— 那只能说明"点发完了"，
-  *         不代表电机真的到位（比如从站根本没跟随）。
+  * @brief  位置是否已到达：从站状态字 bit10（Target reached）为 1
   * @retval 非位置模式（如速度模式）下恒返回 false
   */
 bool_t cia402_position_reached(uint8_t idx);

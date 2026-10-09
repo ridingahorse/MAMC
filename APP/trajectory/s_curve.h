@@ -1,4 +1,12 @@
-/* APP/trajectory/s_curve.h — 7段式 S 曲线轨迹规划（分段解析式求值）
+/* APP/trajectory/s_curve.h — 7段式 S 曲线轨迹规划【接口保留，实现未提供】
+ *
+ * ⚠ 本文件目前只有接口和语义说明，没有实现（实现已于 2026-10-09 清理时删除，
+ *   需要时从 git 历史取回 s_curve.c，或照下面的语义重新实现）。
+ *   全工程没有任何代码调用 s_curve_* —— 它是给 CSP 模式（主机逐点下发）预留的。
+ *
+ * 它解决什么问题：CSP 模式下主机必须持续下发中间点，若直接给驱动器一个位置
+ * 阶跃，电机会抖；S 曲线把"从 start 走到 target"摊成一条 jerk 连续的位置曲线，
+ * 每个调用周期取一个点下发，运动平滑且不丢步。
  *
  * 段内位置是时间的三次多项式（jerk 恒定），因此不需要数值积分：
  *   p(t) = p0 + v0·t + a0·t²/2 + j·t³/6
@@ -7,6 +15,11 @@
  *
  * 内部一律按【正方向】规划（v0/a0/j 均为正方向的量），
  * 输出时再用 dir 映射回实际方向。
+ *
+ * 调用流程（三步，典型放在 cia402 的 RUNNING 周期里）：
+ *   s_curve_init(&sc, target, start, v_max, a_max, jerk, dt_ms);  // 一次
+ *   每周期: p = s_curve_step(&sc, 实际间隔ms);  下发 p 到 0x607A
+ *   收尾:   if (s_curve_done(&sc)) 停止下发 / 转为保持最后一点
  */
 #ifndef _APP_TRAJECTORY_S_CURVE_H_
 #define _APP_TRAJECTORY_S_CURVE_H_
